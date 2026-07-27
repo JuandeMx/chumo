@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-#  INSTALADOR AUTÓNOMO DEL PANEL CHUMO - 100% LIBRE DE KEYS / LICENCIAS
+#  INSTALADOR AUTÓNOMO Y PARCHE DE COMPATIBILIDAD UBUNTU 22.04 / 24.04 / 26.04
 # ==============================================================================
 
 if [ "$EUID" -ne 0 ]; then
@@ -10,7 +10,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo -e "\e[1;32m=========================================================="
-echo " 🛡️ INSTALANDO PANEL CHUMO EN TU SERVIDOR (SIN KEY)"
+echo " 🛡️ INSTALANDO PANEL CHUMO COMPATIBLE CON UBUNTU 22-26"
 echo "==========================================================\e[0m"
 
 # 1. Instalar paquetes y dependencias del sistema
@@ -37,7 +37,7 @@ if [ ! -d "$INSTALL_DIR/core" ]; then
 fi
 
 # 4. Copiar archivos del núcleo (core) y módulos al sistema
-echo -e "\e[1;34m[+] Desplegando scripts y ejecutables...\e[0m"
+echo -e "\e[1;34m[+] Desplegando scripts, módulos y proxies Python 3...\e[0m"
 if [ -d "$INSTALL_DIR/core" ]; then
     cp -rf "$INSTALL_DIR/core/"* /etc/adm-lite/
     cp -rf "$INSTALL_DIR/core/"* /bin/ejecutar/
@@ -50,14 +50,25 @@ if [ -d "$INSTALL_DIR/modules" ]; then
     cp -rf "$INSTALL_DIR/modules/"* /usr/bin/ejecutar/
 fi
 
-# 5. Enlazar comandos clave (/usr/bin/msg, /bin/ejecutar)
+# 5. Enlazar comandos clave y parchar archivos faltantes en Ubuntu 24/26
+echo -e "\e[1;34m[+] Parching archivos y ejecutables del sistema...\e[0m"
 ln -sf /etc/adm-lite/msg /usr/bin/msg
 ln -sf /etc/adm-lite/msg /bin/msg
 ln -sf /etc/adm-lite/msg /bin/ejecutar/msg
+
 touch /etc/sysctl.conf
-touch /bin/ejecutar/v-new.log
+echo "v3.9.9" > /etc/adm-lite/v-local.log
+echo "v3.9.9" > /bin/ejecutar/v-local.log
+echo "v3.9.9" > /bin/ejecutar/v-new.log
 touch /bin/ejecutar/exito
+
 curl -4 -sL https://api.ipify.org > /bin/ejecutar/IPcgh 2>/dev/null || hostname -I | awk '{print $1}' > /bin/ejecutar/IPcgh
+cp /bin/ejecutar/IPcgh /etc/adm-lite/IPcgh 2>/dev/null
+
+# Fix para garantizar que el menú reconozca 'msg' y 'selection_fun'
+if [ -f /etc/adm-lite/menu ]; then
+    sed -i '1s|^|source /bin/ejecutar/msg 2>/dev/null\n|' /etc/adm-lite/menu
+fi
 
 # 6. Aplicar permisos de ejecución
 echo -e "\e[1;34m[+] Configurando permisos de ejecución...\e[0m"
@@ -73,7 +84,7 @@ ln -sf /etc/adm-lite/menu /usr/bin/chumo
 chmod +x /usr/bin/menu /usr/bin/adm /usr/bin/cgh /usr/bin/chumo
 
 echo -e "\e[1;32m=========================================================="
-echo " ✅ INSTALACIÓN Y CORRECCIÓN COMPLETADA CON ÉXITO"
+echo " ✅ INSTALACIÓN Y OPTIMIZACIÓN UBUNTU 22/24/26 COMPLETADA"
 echo "=========================================================="
 echo -e " Accede a tu panel en cualquier momento escribiendo:"
 echo -e " 👉  \e[1;33mmenu\e[0m  o  \e[1;33mchumo\e[0m  o  \e[1;33madm\e[0m"

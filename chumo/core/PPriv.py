@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 
 # -*- coding: utf-8 -*-
 # Edit By GlEmYsSoN & @e8th4ever
@@ -6,7 +6,10 @@
 from pprint import pprint
 import sys
 import http.client
-from socketserver import ThreadingMixIn
+from socketserver try:
+    import _thread as thread
+except ImportError:
+    import threadingMixIn
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Lock, Timer
 from io import StringIO

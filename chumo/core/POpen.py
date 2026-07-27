@@ -1,8 +1,11 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 
 import sys
 import httplib
-from SocketServer import ThreadingMixIn
+from SocketServer try:
+    import _thread as thread
+except ImportError:
+    import threadingMixIn
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from threading import Lock, Timer
 from cStringIO import StringIO
@@ -21,10 +24,10 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 
     def handle_error(self, request, client_address):
         
-        print >>sys.stderr, '-'*40
-        print >>sys.stderr, 'Exception happened during processing of request from', client_address
+        print(>>sys.stderr, '-'*40)
+        print(>>sys.stderr, 'Exception happened during processing of request from', client_address)
         traceback.print_exc()
-        print >>sys.stderr, '-'*40
+        print(>>sys.stderr, '-'*40)
         
      
 class ThreadingHTTPServer6(ThreadingHTTPServer):
@@ -304,7 +307,7 @@ def test(HandlerClass=SimpleHTTPProxyHandler, ServerClass=ThreadingHTTPServer, p
     httpd = ServerClass(server_address, HandlerClass)
 
     sa = httpd.socket.getsockname()
-    print "Serving HTTP on", sa[0], "port", sa[1], "..."
+    print("Serving HTTP on")
     httpd.serve_forever()
 
 
