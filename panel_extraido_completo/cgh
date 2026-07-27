@@ -1,0 +1,9 @@
+#!/bin/bash
+SCPdir="/etc/adm-lite"
+[[ $1 = "-fix" ]] && {
+rm -f /etc/folteto
+rm -f /var/log/auth.log*
+echo  > /var/log/auth.log
+cp /bin/adm /bin/menu
+}
+cd ${SCPdir} && ./menu
