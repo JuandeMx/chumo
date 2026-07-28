@@ -1,46 +1,55 @@
 # -*- coding: utf-8 -*-
-import socket, threading, select, signal, sys, time, getopt, argparse
+import socket, threading, select, signal, sys, time, getopt, argparse, os
+
 try:
     import _thread as thread
 except ImportError:
     import thread
 
-# Parse arguments cleanly for BOTH positional args (e.g. 'python PDirect.py 80 22') AND flag args ('-p 80 -l 22')
+# Parse arguments flexibly for legacy and modern invocations
 parser = argparse.ArgumentParser()
 parser.add_argument("pos_port", nargs="?", default=None, help="Puerto de escucha de socks")
 parser.add_argument("pos_local", nargs="?", default=None, help="Puerto local a redirigir")
 parser.add_argument("-l", "--local", default=None, help="Puerto local")
 parser.add_argument("-p", "--port", default=None, help="Puerto de escucha")
-parser.add_argument("-c", "--contr", default="", help="Contraseña X-Pass")
+parser.add_argument("-c", "--contr", default="", help="Contraseña o Código HTTP")
 parser.add_argument("-r", "--response", default="200", help="Código de respuesta HTTP")
 parser.add_argument("-t", "--texto", default=None, help="Texto de respuesta HTTP")
 
 args, unknown = parser.parse_known_args()
 
-# Determinar Puerto de Escucha
+# 1. Determinar Puerto de Escucha (Default: 80)
 if args.port:
     LISTENING_PORT = int(args.port)
-elif args.pos_port:
+elif args.pos_port and args.pos_port.isdigit():
     LISTENING_PORT = int(args.pos_port)
 else:
     LISTENING_PORT = 80
 
-# Determinar Puerto Local (Destino)
+# 2. Determinar Puerto Local / Destino (Default: 22)
 if args.local:
     target_port = args.local
-elif args.pos_local:
+elif args.pos_local and args.pos_local.isdigit():
     target_port = args.pos_local
 else:
     target_port = "22"
 
 DEFAULT_HOST = '127.0.0.1:' + str(target_port)
 LISTENING_ADDR = '0.0.0.0'
-PASS = str(args.contr) if args.contr else ""
 
-BUFLEN = 4096 * 4
-TIMEOUT = 60
+# 3. Determinar Código de Respuesta y Contraseña X-Pass
+# NOTA: Los scripts legados pasan '-c 200' o '-c 101' para indicar el Código HTTP de respuesta.
+STATUS_RESP = "200"
+PASS = ""
 
-STATUS_RESP = args.response if args.response else '200'
+if args.response and args.response.isdigit():
+    STATUS_RESP = args.response
+
+if args.contr:
+    if args.contr.isdigit():
+        STATUS_RESP = args.contr  # Se usó -c como código HTTP de respuesta (200, 101, etc.)
+    else:
+        PASS = str(args.contr)   # Se usó -c como contraseña de texto
 
 if args.texto:
     STATUS_TXT = args.texto
@@ -50,6 +59,10 @@ else:
     STATUS_TXT = '<font color="red">Connection established</font>'
 
 RESPONSE = str('HTTP/1.1 ' + STATUS_RESP + ' ' + STATUS_TXT + '\r\nContent-length: 0\r\n\r\nHTTP/1.1 200 Connection established\r\n\r\n').encode('latin1')
+
+BUFLEN = 4096 * 4
+TIMEOUT = 60
+
 
 class Server(threading.Thread):
     def __init__(self, host, port):
@@ -69,14 +82,26 @@ class Server(threading.Thread):
         except AttributeError:
             pass
         self.soc.settimeout(2)
+
+        # Auto-liberar el puerto si está ocupado por Apache/Nginx/Proceso colgado
         try:
             self.soc.bind((self.host, self.port))
         except Exception as e:
-            print(f"Error al enlazar puerto {self.port}: {e}")
-            sys.exit(1)
-            
+            os.system(f"fuser -k {self.port}/tcp 2>/dev/null || true")
+            os.system("systemctl stop apache2 nginx 2>/dev/null || true")
+            time.sleep(0.5)
+            try:
+                self.soc.bind((self.host, self.port))
+            except Exception as e2:
+                with open("/root/proxy.log", "a") as f:
+                    f.write(f"[{time.ctime()}] Error binding port {self.port}: {e2}\n")
+                sys.exit(1)
+
         self.soc.listen(128)
         self.running = True
+        
+        with open("/root/proxy.log", "a") as f:
+            f.write(f"[{time.ctime()}] Python Proxy 3 corriendo en puerto {self.port} -> {DEFAULT_HOST} (HTTP {STATUS_RESP})\n")
 
         try:
             while self.running:
