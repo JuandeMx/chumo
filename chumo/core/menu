@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH Plus - Super Panel v11.2.42 (Premium)
 # Modificado para SubmenÃºs y Funciones Avanzadas + Hysteria v2 Manager
 
@@ -8,16 +8,8 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# License check disabled - Unlimited free version
-                done
-            fi
-        fi
-    else
-        clear
-        echo -e "\033[1;31mLicencia no encontrada. Contacte a su proveedor.\033[0m"
-        exit 1
-    fi
-fi
+# --- UNLIMITED FREE VERSION (NO LICENSE CHECK) ---
+touch /etc/adm-lite/.master_node 2>/dev/null
 
 # --- PANEL VERSION ---
 PANEL_VERSION="v11.2.47"

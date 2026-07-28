@@ -99,13 +99,7 @@ curl -4 -sL https://api.ipify.org > /bin/ejecutar/IPcgh 2>/dev/null || hostname 
 cp /bin/ejecutar/IPcgh /etc/adm-lite/IPcgh 2>/dev/null
 cp /bin/ejecutar/IPcgh /etc/ADMcgh/IPcgh 2>/dev/null
 
-# Fix para garantizar que el menú reconozca 'msg' y 'selection_fun'
-if [ -f /etc/adm-lite/menu ]; then
-    sed -i 's|^#!/bin/bash|#!/bin/bash\nsource /bin/ejecutar/msg 2>/dev/null|' /etc/adm-lite/menu 2>/dev/null
-fi
-if [ -f /etc/ADMcgh/menu ]; then
-    sed -i 's|^#!/bin/bash|#!/bin/bash\nsource /bin/ejecutar/msg 2>/dev/null|' /etc/ADMcgh/menu 2>/dev/null
-fi
+# Preservar menú limpio intacto
 
 # 6. Aplicar permisos de ejecución
 echo -e "\e[1;34m[+] Configurando permisos de ejecución...\e[0m"
