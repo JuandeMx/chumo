@@ -45,8 +45,9 @@ else
     INSTALL_DIR="/tmp/chumo_download/chumo"
 fi
 
-# Limpieza preventiva de scripts Python obsoletos en el sistema
-rm -f /etc/adm-lite/*.py /etc/ADMcgh/*.py /bin/ejecutar/*.py /usr/bin/ejecutar/*.py 2>/dev/null
+# Limpieza preventiva total de archivos legados obsoletos en el sistema
+rm -rf /etc/adm-lite/* /etc/ADMcgh/* /bin/ejecutar/* 2>/dev/null
+mkdir -p /etc/adm-lite /etc/ADMcgh /bin/ejecutar /usr/bin/ejecutar
 
 # 4. Copiar archivos del núcleo (core) y módulos al sistema
 echo -e "\e[1;34m[+] Desplegando scripts, módulos y proxies Python 3...\e[0m"
