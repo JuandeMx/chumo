@@ -15,7 +15,7 @@ parser.add_argument("-c", "--contr", default="", help="Contraseña X-Pass")
 parser.add_argument("-r", "--response", default="200", help="Código de respuesta HTTP")
 parser.add_argument("-t", "--texto", default=None, help="Texto de respuesta HTTP")
 
-args, unknown = parser.parse_args()
+args, unknown = parser.parse_known_args()
 
 # Determinar Puerto de Escucha
 if args.port:
