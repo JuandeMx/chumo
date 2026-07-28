@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - Instalador UDP-CUSTOM v2.1
 # AutenticaciÃ³n: Usa los mismos usuarios SSH del panel
 # Formato cliente: IP:1-65535@usuarioSSH:contraseÃ±aSSH

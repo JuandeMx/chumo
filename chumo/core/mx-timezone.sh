@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # Maximus Timezone Changer
 # Adapted from Chumo's LATAM script
 

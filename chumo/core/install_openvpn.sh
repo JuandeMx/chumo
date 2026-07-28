@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - Instalador OpenVPN (Server + Clientes)
 # Perfil: clÃ¡sico, estable y compatible (UDP/TCP)
 

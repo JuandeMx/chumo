@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - Instalador Hysteria 2
 # Protocolo QUIC/UDP de alta velocidad con mascarada anti-DPI
 

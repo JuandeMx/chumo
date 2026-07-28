@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # Maximus Active Port Editor
 # Adapted from Chumo's LATAM script
 

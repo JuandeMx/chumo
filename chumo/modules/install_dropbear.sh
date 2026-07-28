@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # Instalador DinÃ¡mico Dropbear SSH
 
 echo -e "\e[1;36m=========================================================\e[0m"

@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - Web Dedicated SSL Installer
 # RECREA LA LÃ“GICA DE terminal PERO SIN PROMPTS
 

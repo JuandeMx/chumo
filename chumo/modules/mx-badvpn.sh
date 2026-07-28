@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - BadVPN UDPGW Manager
 # Adapta la lÃ³gica de Chumo LATAM a la estÃ©tica de Maximus
 

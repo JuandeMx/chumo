@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import socket, threading, select, signal, sys, time, getopt, argparse, os
 
 try:

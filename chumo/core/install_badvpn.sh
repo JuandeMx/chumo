@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # Instalador DinÃ¡mico BadVPN-UDPGW
 
 echo -e "\e[1;36m=========================================================\e[0m"

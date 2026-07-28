@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - X-UI Native Offline Installer
 # Despliega el panel web X-UI desde binarios precargados
 

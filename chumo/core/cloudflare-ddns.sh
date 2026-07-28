@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - Cloudflare Dynamic DNS Updater (Multi-Subdominio)
 # Comprueba la IP pÃºblica cada 5 min y actualiza registros A en Cloudflare
 

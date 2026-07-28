@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # Maximus UDP Custom / BadVPN Manager
 # Adapted from Chumo's LATAM script
 

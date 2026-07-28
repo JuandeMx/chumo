@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - Instalador WS-EPRO (Python Engine)
 
 RED='\033[1;31m'

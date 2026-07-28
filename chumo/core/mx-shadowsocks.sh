@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - Shadowsocks Manager
 # Adapta la lÃ³gica de Chumo LATAM a la estÃ©tica de Maximus
 

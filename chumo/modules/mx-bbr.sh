@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # Maximus BBR TCP Acceleration (NetSpeed)
 # Adapted from Chumo's LATAM script
 

@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - Stunnel4 (SSL/TLS) Manager
 # Adapta la lÃ³gica de Chumo LATAM a la estÃ©tica de Maximus
 

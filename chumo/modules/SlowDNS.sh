@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # Maximus SlowDNS Manager
 # Adapted from Chumo's LATAM script
 

@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - Web Panel Installer v1.0 (Premium)
 # Port: 8082
 

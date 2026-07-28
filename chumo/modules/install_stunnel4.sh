@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - Master SSL Installer v4.0 (Agnostic Edition)
 # Soporta Modo Directo, Proxy e HÃ­brido Universal
 

@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 
 echo -e "\e[1;32m[+] Configurando la API de WhatsApp para ChumoGH...\e[0m"
 

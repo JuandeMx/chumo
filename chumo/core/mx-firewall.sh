@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # Maximus Firewall & Anti-Torrent / Anti-SPAM Block
 # Adapted from Chumo's LATAM script
 

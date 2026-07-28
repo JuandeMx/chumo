@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - SSL + PYTHON (Combo Completo)
 # Configura Dropbear + Python WebSocket Proxy + Stunnel4 SSL en un solo paso
 

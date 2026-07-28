@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ChumoGH - File Server Module (HTTP Downloads)
 # Port: 8888
 
