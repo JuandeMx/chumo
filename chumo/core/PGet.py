@@ -1,682 +1,313 @@
-﻿import sys, time, getopt, socket, threading, base64
-
-
-# CONFIG
-CONFIG_LISTENING = '0.0.0.0:8799'
-CONFIG_PASS = 'pwd.pwd'
-
-
-class Logger:
-
-    logLock = threading.Lock()
-    LOG_INFO = 1
-    LOG_WARN = 2
-    LOG_ERROR = 3
-
-    def printWarn(self, log):
-        self.log(log)
-
-    def printInfo(self, log):
-        self.log(log)
-
-    def printError(self, log):
-        self.log(log)
-
-    def printLog(self, log, logLevel):
-        if logLevel == Logger.LOG_INFO:
-            self.printInfo('<-> ' + log)
-        elif logLevel == Logger.LOG_WARN:
-            self.printWarn('<!> ' + log)
-        elif logLevel == Logger.LOG_ERROR:
-            self.printError('<#> ' + log)
-
-    def log(self, log):
-        with Logger.logLock:
-            print(log)
-
-		
-
-class PasswordSet:
-    FILE_EXEMPLE = 'master=passwd123\n127.0.0.1:22=pwd321;321pawd\n1.23.45.67:443=pass123'
-
-    def __init__(self, masterKey=None):
-        self.masterKey = masterKey
-
-    def parseFile(self, fileName):
-        isValid = False
-
-        with open(fileName) as f:
-            content = f.readlines()
-
-        content = [x.strip() for x in content]
-        content = [item for item in content if not str(item).startswith('#')]
-
-        if len(content) > 0:
-            masterKey = content[0]
-
-            if self.splitParam(masterKey, '=') is not None and masterKey.startswith('master'):
-                self.masterKey = self.splitParam(masterKey, '=')[1]
-
-            isValid = True
-            self.map = dict()
-
-            for i, v in enumerate(content[1:]):
-                hostAndPass = self.splitParam(v, '=')
-
-                if hostAndPass is not None:
-                    self.map[hostAndPass[0]] = hostAndPass[1].split(';')
-
-        return isValid
-
-    def isValidKey(self, key, target):
-        valid = False
-
-        if not self.masterKey == key:
-            if hasattr(self, 'map'):
-                if self.map.has_key(target):
-                    valid = key in self.map[target]
-        else:
-            valid = True
-
-        return valid
-
-
-    def splitParam(self, param, c):
-        index = param.find(c)
-
-        ret = None
-
-        if index != -1:
-            ret = []
-            ret.append(param[0:index])
-            ret.append(param[index+1:])
-
-        return ret
-
-
-
-
-class ClientRequest:
-    MAX_LEN_CLIENT_REQUEST = 1024 * 100
-    HEADER_CONTENT_LENGTH = 'Content-Length'
-    HEADER_ACTION = 'X-Action'
-    ACTION_CLOSE = 'close'
-    ACTION_DATA = 'data'
-
-    def __init__(self, socket):
-        self.socket = socket
-        self.readConent = False
-
-    def parse(self):
-        line = ''
-        count = 0
-        self.isValid = False
-        self.data = None
-        self.contentLength = None
-        self.action = None
-
-        while line != '\r\n' and count < ClientRequest.MAX_LEN_CLIENT_REQUEST:
-            line = self.readHttpLine()
-
-            if line is None:
-                break
-
-            if line.startswith(ClientRequest.HEADER_ACTION):
-                self.action = self.getHeaderVal(line)
-
-                if not self.action is None:
-                    if self.action == ClientRequest.ACTION_CLOSE or self.action == ClientRequest.ACTION_DATA:
-                        self.isValid = True
-
-            count += len(line)
-
-        if self.readConent:
-            if self.contentLength > 0 and self.contentLength < ClientRequest.MAX_LEN_CLIENT_REQUEST:
-                self.data = self.readFully(self.contentLength)
-
-        return self.isValid
-
-    def readHttpLine(self):
-        line = ''
-        count = 0
-        socket = self.socket
-
-        b = socket.recv(1)
-
-        if not b:
-            return None
-
-        while count < ClientRequest.MAX_LEN_CLIENT_REQUEST:
-            count += 1
-            line += b
-
-            if b == '\r':
-                b = socket.recv(1)
-                count += 1
-
-                if not b:
-                    break
-
-                line += b
-
-                if b == '\n':
-                    break
-
-            b = socket.recv(1)
-
-            if not b:
-                break
-
-        if not b:
-            return None
-
-        return line
-
-    def getHeaderVal(self, header):
-        ini = header.find(':')
-
-        if ini == -1:
-            return None
-
-        ini += 2
-
-        fim = header.find('\r\n')
-
-        if fim == -1:
-            header = header[ini:]
-
-        return header[ini:fim]
-
-    def readFully(self, n):
-        count = 0
-        data = ''
-
-        while count < n:
-            packet = self.socket.recv(n - count)
-
-            if not packet:
-                break
-
-            count += len(packet)
-            data += packet
-
-
-
-
-class Client(threading.Thread):
-    ACTION_DATA = 'data'
-    BUFFER_SIZE = 4096
-
-    def __init__(self, id, readSocket, target):
-        super(Client, self).__init__()
-        self.targetHostPort = target
-        self.id = id
-        self.readSocket = readSocket
-        self.logger = Logger()
-        self.isStopped = False
-        self.onCloseFunction = None
-        self.closeLock = threading.Lock()
-        self.threadEndCount = 0
-        self.writeSocket = None
-
-    def connectTarget(self):
-        aux = self.targetHostPort.find(':')
-
-        host = self.targetHostPort[:aux]
-        port = int(self.targetHostPort[aux + 1:])
-
-        self.target = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.target.connect((host, port))
-
-    def run(self):
-        try:
-            self.connectTarget()
-
-            request = ClientRequest(self.readSocket)
-            request.readConent = False
-
-            if not request.parse() or not Client.ACTION_DATA == request.action:
-                raise Exception('client sends invalid request')
-
-            threadRead = ThreadRelay(self.readSocket, self.target, self.finallyClose)
-            threadRead.logFunction = self.log
-            threadRead.start()
-
-            threadWrite = ThreadRelay(self.target, self.writeSocket, self.finallyClose)
-            threadWrite.logFunction = self.log
-            threadWrite.start()
-        except Exception as e:
-            self.log('connection error - ' + str(type(e)) + ' - ' + str(e), Logger.LOG_ERROR)
-            self.close()
-
-    def finallyClose(self):
-        with self.closeLock:
-            self.threadEndCount += 1
-
-            if self.threadEndCount == 2:
-                self.close()
-
-    def close(self):
-        if not self.isStopped:
-            self.isStopped = True
-
-            if hasattr(self, 'target'):
-                try:
-                    self.target.close()
-                except:
-                    pass
-
-            if hasattr(self, 'writeSocket'):
-                try:
-                    self.writeSocket.close()
-                except:
-                    pass
-
-            if hasattr(self, 'readSocket'):
-                try:
-                    self.readSocket.close()
-                except:
-                    pass
-
-            self.onClose()
-            self.log('closed', Logger.LOG_INFO)
-
-    def onClose(self):
-        if not self.onCloseFunction is None:
-            self.onCloseFunction(self)
-
-    def log(self, msg, logLevel):
-        msg = 'Client ' + str(self.id) + ': ' + msg
-        self.logger.printLog(msg, logLevel)
-
-
-class ThreadRelay(threading.Thread):
-    def __init__(self, readSocket, writeSocket, closeFunction=None):
-        super(ThreadRelay, self).__init__()
-        self.readSocket = readSocket
-        self.writeSocket = writeSocket
-        self.logFunction = None
-        self.closeFuntion = closeFunction
-
-    def run(self):
-        try:
-            while True:
-                data = self.readSocket.recv(Client.BUFFER_SIZE)
-                if not data:
-                    break
-                self.writeSocket.sendall(data)
-
-            self.writeSocket.shutdown(socket.SHUT_WR)
-        except Exception as e:
-            if not self.logFunction is None:
-                self.logFunction('threadRelay error: ' + str(type(e)) + ' - ' + str(e), Logger.LOG_ERROR)
-        finally:
-            if not self.closeFuntion is None:
-                self.closeFuntion()
-
-
-
-
-class AcceptClient(threading.Thread):
-    MAX_QTD_BYTES = 5000
-    HEADER_BODY = 'X-Body'
-    HEADER_ACTION = 'X-Action'
-    HEADER_TARGET = 'X-Target'
-    HEADER_PASS = 'X-Pass'
-    HEADER_ID = 'X-Id'
-    ACTION_CREATE = 'create'
-    ACTION_COMPLETE = 'complete'
-    MSG_CONNECTION_CREATED = 'Created'
-    MSG_CONNECTION_COMPLETED = 'Completed'
-
-    ID_COUNT = 0
-    ID_LOCK = threading.Lock()
-
-    def __init__(self, socket, server, passwdSet=None):
-        super(AcceptClient, self).__init__()
-        self.server = server
-        self.passwdSet = passwdSet
-        self.socket = socket
-
-    def run(self):
-        needClose = True
-
-        try:
-            head = self.readHttpRequest()
-
-            bodyLen = self.getHeaderVal(head, AcceptClient.HEADER_BODY)
-            if not bodyLen is None:
-                try:
-                    self.readFully(int(bodyLen))
-                except ValueError:
-                    pass
-
-            action = self.getHeaderVal(head, AcceptClient.HEADER_ACTION)
-
-            if action is None:
-                self.log('client sends no action header', Logger.LOG_WARN)
-                self.socket.sendall('HTTP/1.1 400 NoActionHeader!\r\nServer: GetTunnelServer\r\n\r\n')
-                return
-
-            if action == AcceptClient.ACTION_CREATE:
-                target = self.getHeaderVal(head, AcceptClient.HEADER_TARGET)
-
-                if not self.passwdSet is None:
-                    passwd = self.getHeaderVal(head, AcceptClient.HEADER_PASS)
-
-                    try:
-                        passwd = base64.b64decode(passwd)
-                    except:
-                        passwd = None
-                        pass
-
-                    if passwd is None or not self.passwdSet.isValidKey(passwd, target):
-                        self.log('client sends wrong key', Logger.LOG_WARN)
-                        self.socket.sendall('HTTP/1.1 403 Forbidden\r\nServer: GetTunnelServer\r\n\r\n')
-                        return
-
-                if target is not None and self.isValidHostPort(target):
-                    id = self.generateId()
-
-                    client = Client(id, self.socket, target)
-                    client.onCloseFunction = self.server.removeClient
-                    self.server.addClient(client)
-                    self.socket.sendall('HTTP/1.1 200 '+ AcceptClient.MSG_CONNECTION_CREATED + '\r\nServer: GetTunnelServer\r\nX-Id: ' + str(id) + '\r\nContent-Type: text/plain\r\nContent-Length: 0\r\nConnection: Keep-Alive\r\n\r\n')
-                    self.log('connection created - ' + str(id), Logger.LOG_INFO)
-                    needClose = False
-                else:
-                    self.log('client sends no valid target', Logger.LOG_WARN)
-                    self.socket.sendall('HTTP/1.1 400 Target!\r\nServer: GetTunnelServer\r\n\r\n')
-
-            elif action == AcceptClient.ACTION_COMPLETE:
-                id = self.getHeaderVal(head, AcceptClient.HEADER_ID)
-
-                if not id is None:
-                    client = self.server.getClient(id)
-
-                    if not client is None:
-                        client.writeSocket = self.socket
-
-                        self.log('connection completed - ' + str(id), Logger.LOG_INFO)
-                        self.socket.sendall('HTTP/1.1 200 ' + AcceptClient.MSG_CONNECTION_COMPLETED + '\r\nServer: GetTunnelServer\r\nConnection: Keep-Alive\r\n\r\n')
-
-                        client.start()
-                        needClose = False
-                    else:
-                        self.log('client try to complete non existing connection', Logger.LOG_WARN)
-                        self.socket.sendall('HTTP/1.1 400 CreateFirst!\r\nServer: GetTunnelServer\r\n\r\n')
-                else:
-                    self.log('client sends no id header', Logger.LOG_WARN)
-                    self.socket.sendall('HTTP/1.1 400 NoID!\r\nServer: GetTunnelServer\r\n\r\n')
-            else:
-                self.log('client sends invalid action', Logger.LOG_WARN)
-                self.socket.sendall('HTTP/1.1 400 InvalidAction!\r\nServer: GetTunnelServer\r\n\r\n')
-
-        except Exception as e:
-            self.log('connection error - ' + str(type(e)) + ' - ' + str(e), Logger.LOG_ERROR)
-        finally:
-            if needClose:
-                try:
-                    self.socket.close()
-                except:
-                    pass
-
-    def log(self, msg, logLevel):
-        self.server.log(msg, logLevel)
-
-    def readHttpRequest(self):
-        request = ''
-        linha = ''
-        count = 0
-
-        while linha != '\r\n' and count < AcceptClient.MAX_QTD_BYTES:
-            linha = self.readHttpLine()
-
-            if linha is None:
-                break
-
-            request += linha
-            count += len(linha)
-
-        return request
-
-    def readHttpLine(self):
-        line = ''
-        count = 0
-        socket = self.socket
-
-        b = socket.recv(1)
-
-        if not b:
-            return None
-
-        while count < AcceptClient.MAX_QTD_BYTES:
-            count += 1
-            line += b
-
-            if b == '\r':
-                b = socket.recv(1)
-                count += 1
-
-                if not b:
-                    break
-
-                line += b
-
-                if b == '\n':
-                    break
-
-            b = socket.recv(1)
-
-            if not b:
-                break
-
-        if not b:
-            return None
-
-        return line
-
-    def getHeaderVal(self, head, header):
-        if not head.startswith('\r\n'):
-            header = '\r\n' + header
-
-        if not header.endswith(': '):
-            header = header + ': '
-
-        ini = head.find(header)
-
-        if ini == -1:
-            return None
-
-        end = head.find('\r\n', ini+2)
-
-        ini += len(header)
-
-        if end == -1 or ini > end or ini >= len(head):
-            return None
-
-        return head[ini:end]
-
-    def readFully(self, n):
-        count = 0
-
-        while count < n:
-            packet = self.socket.recv(n - count)
-
-            if not packet:
-                break
-
-            count += len(packet)
-
-    def isValidHostPort(self, hostPort):
-        aux = hostPort.find(':')
-
-        if aux == -1 or aux >= len(hostPort) -1:
-            return False
-
-        try:
-            int(hostPort[aux+1:])
-            return True
-        except ValueError:
-            return False
-
-    def generateId(self):
-        with AcceptClient.ID_LOCK:
-            AcceptClient.ID_COUNT += 1
-            return AcceptClient.ID_COUNT
-
+﻿# -*- coding: utf-8 -*-
+import socket, threading, select, signal, sys, time, getopt, argparse, os
+
+try:
+    import _thread as thread
+except ImportError:
+    import thread
+
+# Parse arguments flexibly for legacy and modern invocations
+parser = argparse.ArgumentParser()
+parser.add_argument("pos_port", nargs="?", default=None, help="Puerto de escucha de socks")
+parser.add_argument("pos_local", nargs="?", default=None, help="Puerto local a redirigir")
+parser.add_argument("-l", "--local", default=None, help="Puerto local")
+parser.add_argument("-p", "--port", default=None, help="Puerto de escucha")
+parser.add_argument("-c", "--contr", default="", help="ContraseÃ±a o CÃ³digo HTTP")
+parser.add_argument("-r", "--response", default="200", help="CÃ³digo de respuesta HTTP")
+parser.add_argument("-t", "--texto", default=None, help="Texto de respuesta HTTP")
+
+args, unknown = parser.parse_known_args()
+
+# 1. Determinar Puerto de Escucha (Default: 80)
+if args.port:
+    LISTENING_PORT = int(args.port)
+elif args.pos_port and args.pos_port.isdigit():
+    LISTENING_PORT = int(args.pos_port)
+else:
+    LISTENING_PORT = 80
+
+# 2. Determinar Puerto Local / Destino (Default: 22)
+if args.local:
+    target_port = args.local
+elif args.pos_local and args.pos_local.isdigit():
+    target_port = args.pos_local
+else:
+    target_port = "22"
+
+DEFAULT_HOST = '127.0.0.1:' + str(target_port)
+LISTENING_ADDR = '0.0.0.0'
+
+# 3. Determinar CÃ³digo de Respuesta y ContraseÃ±a X-Pass
+# NOTA: Los scripts legados pasan '-c 200' o '-c 101' para indicar el CÃ³digo HTTP de respuesta.
+STATUS_RESP = "200"
+PASS = ""
+
+if args.response and args.response.isdigit():
+    STATUS_RESP = args.response
+
+if args.contr:
+    if args.contr.isdigit():
+        STATUS_RESP = args.contr  # Se usÃ³ -c como cÃ³digo HTTP de respuesta (200, 101, etc.)
+    else:
+        PASS = str(args.contr)   # Se usÃ³ -c como contraseÃ±a de texto
+
+if args.texto:
+    STATUS_TXT = args.texto
+elif STATUS_RESP == '101':
+    STATUS_TXT = '<font color="red">Switching Protocols</font>'
+else:
+    STATUS_TXT = '<font color="red">Connection established</font>'
+
+RESPONSE = str('HTTP/1.1 ' + STATUS_RESP + ' ' + STATUS_TXT + '\r\nContent-length: 0\r\n\r\nHTTP/1.1 200 Connection established\r\n\r\n').encode('latin1')
+
+BUFLEN = 4096 * 4
+TIMEOUT = 60
 
 
 class Server(threading.Thread):
-
-    def __init__(self, listening, passwdSet=None):
-        super(Server, self).__init__()
-        self.listening = listening
-        self.passwdSet = passwdSet
+    def __init__(self, host, port):
+        threading.Thread.__init__(self)
         self.running = False
-        self.logger = Logger()
-        self.isStopped = False
-        self.clientsLock = threading.Lock()
-        self.clients = []
+        self.host = host
+        self.port = port
+        self.threads = []
+        self.threadsLock = threading.Lock()
+        self.logLock = threading.Lock()
 
     def run(self):
+        self.soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            self.soc = socket.socket(socket.AF_INET)
-            self.soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.soc.settimeout(2)
-            self.soc.bind((self.listening[:self.listening.find(':')], int(self.listening[self.listening.find(':') + 1:])))
-            self.soc.listen(0)
+            self.soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except AttributeError:
+            pass
+        self.soc.settimeout(2)
 
-            self.log('running on ' + self.listening, Logger.LOG_INFO)
+        # Auto-liberar el puerto si estÃ¡ ocupado por Apache/Nginx/Proceso colgado
+        try:
+            self.soc.bind((self.host, self.port))
+        except Exception as e:
+            os.system(f"fuser -k {self.port}/tcp 2>/dev/null || true")
+            os.system("systemctl stop apache2 nginx 2>/dev/null || true")
+            time.sleep(0.5)
+            try:
+                self.soc.bind((self.host, self.port))
+            except Exception as e2:
+                with open("/root/proxy.log", "a") as f:
+                    f.write(f"[{time.ctime()}] Error binding port {self.port}: {e2}\n")
+                sys.exit(1)
 
-            self.running = True
+        self.soc.listen(128)
+        self.running = True
+        
+        with open("/root/proxy.log", "a") as f:
+            f.write(f"[{time.ctime()}] Python Proxy 3 corriendo en puerto {self.port} -> {DEFAULT_HOST} (HTTP {STATUS_RESP})\n")
+
+        try:
             while self.running:
                 try:
                     c, addr = self.soc.accept()
                     c.setblocking(1)
-
-                    self.log('opennig connection - ' + str(addr), Logger.LOG_INFO)
-                    self.acceptClient(c)
                 except socket.timeout:
                     continue
-        except Exception as e:
-            self.log('connection error - ' + str(type(e)) + ' - ' + str(e), Logger.LOG_ERROR)
+
+                conn = ConnectionHandler(c, self, addr)
+                conn.start()
+                self.addConn(conn)
         finally:
             self.running = False
-            self.close()
+            self.soc.close()
 
-    def acceptClient(self, socket):
-        accept = AcceptClient(socket, self, self.passwdSet)
-        accept.start()
+    def printLog(self, log):
+        self.logLock.acquire()
+        print(log)
+        self.logLock.release()
 
-    def addClient(self, client):
-        with self.clientsLock:
-            self.clients.append(client)
+    def addConn(self, conn):
+        try:
+            self.threadsLock.acquire()
+            if self.running:
+                self.threads.append(conn)
+        finally:
+            self.threadsLock.release()
 
-    def removeClient(self, client):
-        with self.clientsLock:
-            self.clients.remove(client)
-
-    def getClient(self, id):
-        client = None
-        with self.clientsLock:
-            for c in self.clients:
-                if str(c.id) == str(id):
-                    client = c
-                    break
-        return client
+    def removeConn(self, conn):
+        try:
+            self.threadsLock.acquire()
+            if conn in self.threads:
+                self.threads.remove(conn)
+        finally:
+            self.threadsLock.release()
 
     def close(self):
-        if not self.isStopped:
-            self.isStopped = True
+        try:
+            self.running = False
+            self.threadsLock.acquire()
 
-            if hasattr(self, 'soc'):
-                try:
-                    self.soc.close()
-                except:
-                    pass
-
-            with self.clientsLock:
-                clientsCopy = self.clients[:]
-
-            for c in clientsCopy:
+            threads = list(self.threads)
+            for c in threads:
                 c.close()
-
-            self.log('closed', Logger.LOG_INFO)
-
-    def log(self, msg, logLevel):
-        msg = 'Server: ' + msg
-        self.logger.printLog(msg, logLevel)
+        finally:
+            self.threadsLock.release()
 
 
+class ConnectionHandler(threading.Thread):
+    def __init__(self, socClient, server, addr):
+        threading.Thread.__init__(self)
+        self.clientClosed = False
+        self.targetClosed = True
+        self.client = socClient
+        self.client_buffer = ''
+        self.server = server
+        self.log = 'Connection: ' + str(addr)
 
+    def close(self):
+        try:
+            if not self.clientClosed:
+                self.client.shutdown(socket.SHUT_RDWR)
+                self.client.close()
+        except:
+            pass
+        finally:
+            self.clientClosed = True
 
-def print_usage():
-    print('\nUsage  : python get.py -b listening -p pass')
-    print('Ex.    : python get.py -b 0.0.0.0:80 -p pass123')
-    print('       : python get.py -b 0.0.0.0:80 -p passFile.pwd\n')
-    print('___Password file ex.:___')
-    print(PasswordSet.FILE_EXEMPLE)
+        try:
+            if not self.targetClosed:
+                self.target.shutdown(socket.SHUT_RDWR)
+                self.target.close()
+        except:
+            pass
+        finally:
+            self.targetClosed = True
 
-def parse_args(argv):
-    global CONFIG_LISTENING
-    global CONFIG_PASS
+    def run(self):
+        try:
+            raw_data = self.client.recv(BUFLEN)
+            if not raw_data:
+                return
+            self.client_buffer = raw_data.decode('latin1', errors='ignore')
 
-    try:
-        opts, args = getopt.getopt(argv, "hb:p:", ["bind=", "pass="])
-    except getopt.GetoptError:
-        print_usage()
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print_usage()
-            sys.exit()
-        elif opt in ('-b', '--bind'):
-            CONFIG_LISTENING = arg
-        elif opt in ('-p', '--pass'):
-            CONFIG_PASS = arg
+            hostPort = self.findHeader(self.client_buffer, 'X-Real-Host')
+
+            if hostPort == '':
+                hostPort = DEFAULT_HOST
+
+            split = self.findHeader(self.client_buffer, 'X-Split')
+
+            if split != '':
+                self.client.recv(BUFLEN)
+
+            if hostPort != '':
+                passwd = self.findHeader(self.client_buffer, 'X-Pass')
+                
+                if len(PASS) != 0 and passwd == PASS:
+                    self.method_CONNECT(hostPort)
+                elif len(PASS) != 0 and passwd != PASS:
+                    self.client.send(b'HTTP/1.1 400 WrongPass!\r\n\r\n')
+                elif hostPort.startswith('127.0.0.1') or hostPort.startswith('localhost'):
+                    self.method_CONNECT(hostPort)
+                else:
+                    self.client.send(b'HTTP/1.1 403 Forbidden!\r\n\r\n')
+            else:
+                self.client.send(b'HTTP/1.1 400 NoXRealHost!\r\n\r\n')
+
+        except Exception as e:
+            self.log += ' - error: ' + str(e)
+            self.server.printLog(self.log)
+            pass
+        finally:
+            self.close()
+            self.server.removeConn(self)
+
+    def findHeader(self, head, header):
+        aux = head.find(header + ': ')
+
+        if aux == -1:
+            return ''
+
+        aux = head.find(':', aux)
+        head = head[aux+2:]
+        aux = head.find('\r\n')
+
+        if aux == -1:
+            return ''
+
+        return head[:aux]
+
+    def connect_target(self, host):
+        i = host.find(':')
+        if i != -1:
+            port = int(host[i+1:])
+            host = host[:i]
+        else:
+            port = 443
+
+        (soc_family, soc_type, proto, _, address) = socket.getaddrinfo(host, port)[0]
+
+        self.target = socket.socket(soc_family, soc_type, proto)
+        self.targetClosed = False
+        self.target.connect(address)
+
+    def method_CONNECT(self, path):
+        self.log += ' - CONNECT ' + path
+
+        self.connect_target(path)
+        self.client.sendall(RESPONSE)
+        self.client_buffer = ''
+
+        self.server.printLog(self.log)
+        self.doCONNECT()
+
+    def doCONNECT(self):
+        socs = [self.client, self.target]
+        count = 0
+        error = False
+        while True:
+            count += 1
+            (recv, _, err) = select.select(socs, [], socs, 3)
+            if err:
+                error = True
+            if recv:
+                for in_ in recv:
+                    try:
+                        data = in_.recv(BUFLEN)
+                        if data:
+                            if in_ is self.target:
+                                self.client.send(data)
+                            else:
+                                while data:
+                                    byte = self.target.send(data)
+                                    data = data[byte:]
+
+                            count = 0
+                        else:
+                            break
+                    except:
+                        error = True
+                        break
+            if count == TIMEOUT:
+                error = True
+
+            if error:
+                break
 
 def main():
-    print('\n-->GetTunnelPy - Server v.' + '25/06/2017' + '\n')
-    print('-->Listening: ' + CONFIG_LISTENING)
+    print(f"\n:-------PythonProxy (Python 3)-------:\n")
+    print(f"Listening addr: {LISTENING_ADDR}")
+    print(f"Listening port: {LISTENING_PORT}\n")
+    print(f"Target host: {DEFAULT_HOST}\n")
+    print(f":-----------------------------------:\n")
 
-    pwdSet = None
-
-    if not CONFIG_PASS is None:
-        if CONFIG_PASS.endswith('.pwd'):
-            pwdSet = PasswordSet()
-
-            try:
-                isValidFile = pwdSet.parseFile(CONFIG_PASS)
-            except IOError as e:
-                print('--#Error reading file: ' + str(type(e)) + ' - ' + str(e))
-                sys.exit()
-
-            if not isValidFile:
-                print('--#Error on parsing file!\n')
-                print_usage()
-                return
-
-            print('-->Pass file: ' + CONFIG_PASS + '\n')
-        else:
-            if (len(CONFIG_PASS) > 0):
-                print('-->Pass     : yes\n')
-                pwdSet = PasswordSet(CONFIG_PASS)
-            else:
-                print('-->Pass     : no\n')
-
-    server = Server(CONFIG_LISTENING)
-    server.passwdSet = pwdSet
+    server = Server(LISTENING_ADDR, LISTENING_PORT)
     server.start()
 
     while True:
         try:
             time.sleep(2)
         except KeyboardInterrupt:
-            print('<-> Stopping server...')
-            server.running = False
+            print('Stopping...')
+            server.close()
             break
 
 if __name__ == '__main__':
-    parse_args(sys.argv[1:])
     main()

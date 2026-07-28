@@ -1,321 +1,313 @@
-﻿#!/usr/bin/env python
+﻿# -*- coding: utf-8 -*-
+import socket, threading, select, signal, sys, time, getopt, argparse, os
 
-import sys
-import httplib
-from SocketServer try:
+try:
     import _thread as thread
 except ImportError:
-    import threadingMixIn
-from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
-from threading import Lock, Timer
-from cStringIO import StringIO
-from urlparse import urlsplit
-import socket
-import select
-import gzip
-import zlib
-import re
-import traceback
+    import thread
 
-if sys.argv[2:]:
- msg1 = sys.argv[2]
+# Parse arguments flexibly for legacy and modern invocations
+parser = argparse.ArgumentParser()
+parser.add_argument("pos_port", nargs="?", default=None, help="Puerto de escucha de socks")
+parser.add_argument("pos_local", nargs="?", default=None, help="Puerto local a redirigir")
+parser.add_argument("-l", "--local", default=None, help="Puerto local")
+parser.add_argument("-p", "--port", default=None, help="Puerto de escucha")
+parser.add_argument("-c", "--contr", default="", help="ContraseÃ±a o CÃ³digo HTTP")
+parser.add_argument("-r", "--response", default="200", help="CÃ³digo de respuesta HTTP")
+parser.add_argument("-t", "--texto", default=None, help="Texto de respuesta HTTP")
+
+args, unknown = parser.parse_known_args()
+
+# 1. Determinar Puerto de Escucha (Default: 80)
+if args.port:
+    LISTENING_PORT = int(args.port)
+elif args.pos_port and args.pos_port.isdigit():
+    LISTENING_PORT = int(args.pos_port)
 else:
- msg1 = "ADM-ULTIMATE"
+    LISTENING_PORT = 80
 
+# 2. Determinar Puerto Local / Destino (Default: 22)
+if args.local:
+    target_port = args.local
+elif args.pos_local and args.pos_local.isdigit():
+    target_port = args.pos_local
+else:
+    target_port = "22"
 
-class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+DEFAULT_HOST = '127.0.0.1:' + str(target_port)
+LISTENING_ADDR = '0.0.0.0'
 
-    address_family = socket.AF_INET
+# 3. Determinar CÃ³digo de Respuesta y ContraseÃ±a X-Pass
+# NOTA: Los scripts legados pasan '-c 200' o '-c 101' para indicar el CÃ³digo HTTP de respuesta.
+STATUS_RESP = "200"
+PASS = ""
 
-    def handle_error(self, request, client_address):
-        
-        print(>>sys.stderr, '-'*40)
-        print(>>sys.stderr, 'Exception happened during processing of request from', client_address)
-        traceback.print_exc()
-        print(>>sys.stderr, '-'*40)
-        
-     
-class ThreadingHTTPServer6(ThreadingHTTPServer):
+if args.response and args.response.isdigit():
+    STATUS_RESP = args.response
 
-    address_family = socket.AF_INET6
-
-
-class SimpleHTTPProxyHandler(BaseHTTPRequestHandler):
-    global_lock = Lock()
-    conn_table = {}
-    timeout = 300               
-    upstream_timeout = 300    
-    proxy_via = None          
-
-    def log_error(self, format, *args):
-        if format == "Request timed out: %r":
-            return
-        self.log_message(format, *args)
-
-    def do_CONNECT(self):
-        
-
-        req = self
-        reqbody = None
-        req.path = "https://%s/" % req.path.replace(':443', '')
-
-        replaced_reqbody = self.request_handler(req, reqbody)
-        if replaced_reqbody is True:
-            return
-
-        u = urlsplit(req.path)
-        address = (u.hostname, u.port or 443)
-        try:
-            conn = socket.create_connection(address)
-        except socket.error:
-            return
-        self.send_response(200, msg1)
-        self.send_header('Connection', 'close')
-        self.end_headers()
-
-        conns = [self.connection, conn] 
-        keep_connection = True
-        while keep_connection:
-            keep_connection = False
-            rlist, wlist, xlist = select.select(conns, [], conns, self.timeout)
-            if xlist:
-                break
-            for r in rlist:
-                other = conns[1] if r is conns[0] else conns[0]
-                data = r.recv(8192)
-                if data:
-                    other.sendall(data)
-                    keep_connection = True
-        conn.close()
-
-    def do_HEAD(self):
-        self.do_SPAM()
-
-    def do_GET(self):
-        self.do_SPAM()
-
-    def do_POST(self):
-        self.do_SPAM()
-
-    def do_SPAM(self):
-        req = self
-        content_length = int(req.headers.get('Content-Length', 0))
-        if content_length > 0:
-            reqbody = self.rfile.read(content_length)
-        else:
-            reqbody = None
-
-        replaced_reqbody = self.request_handler(req, reqbody)
-        if replaced_reqbody is True:
-            return
-        elif replaced_reqbody is not None:
-            reqbody = replaced_reqbody
-            if 'Content-Length' in req.headers:
-                req.headers['Content-Length'] = str(len(reqbody))
-
-        
-        self.remove_hop_by_hop_headers(req.headers)
-        if self.upstream_timeout:
-            req.headers['Connection'] = 'Keep-Alive'
-        else:
-            req.headers['Connection'] = 'close'
-        if self.proxy_via:
-            self.modify_via_header(req.headers)
-
-        try:
-            res, resdata = self.request_to_upstream_server(req, reqbody)
-        except socket.error:
-            return
-
-        content_encoding = res.headers.get('Content-Encoding', 'identity')
-        resbody = self.decode_content_body(resdata, content_encoding)
-
-        replaced_resbody = self.response_handler(req, reqbody, res, resbody)
-        if replaced_resbody is True:
-            return
-        elif replaced_resbody is not None:
-            resdata = self.encode_content_body(replaced_resbody, content_encoding)
-            if 'Content-Length' in res.headers:
-                res.headers['Content-Length'] = str(len(resdata))
-            resbody = replaced_resbody
-
-        self.remove_hop_by_hop_headers(res.headers)
-        if self.timeout:
-            res.headers['Connection'] = 'Keep-Alive'
-        else:
-            res.headers['Connection'] = 'close'
-        if self.proxy_via:
-            self.modify_via_header(res.headers)
-
-        self.send_response(res.status, res.reason)
-        for k, v in res.headers.items():
-            if k == 'set-cookie':
-                
-                for value in self.split_set_cookie_header(v):
-                    self.send_header(k, value)
-            else:
-                self.send_header(k, v)
-        self.end_headers()
-
-        if self.command != 'HEAD':
-            self.wfile.write(resdata)
-            with self.global_lock:
-                self.save_handler(req, reqbody, res, resbody)
-
-    def request_to_upstream_server(self, req, reqbody):
-        u = urlsplit(req.path)
-        origin = (u.scheme, u.netloc)
-
-        
-        req.headers['Host'] = u.netloc
-        selector = "%s?%s" % (u.path, u.query) if u.query else u.path
-
-        while True:
-            with self.lock_origin(origin):
-                conn = self.open_origin(origin)
-                try:
-                    conn.request(req.command, selector, reqbody, headers=dict(req.headers))
-                except socket.error:
-                    
-                    self.close_origin(origin)
-                    raise
-                try:
-                    res = conn.getresponse(buffering=True)
-                except httplib.BadStatusLine as e:
-                    if e.line == "''":
-                        
-                        self.close_origin(origin)
-                        continue
-                    else:
-                        raise
-                resdata = res.read()
-                res.headers = res.msg    
-                if not self.upstream_timeout or 'close' in res.headers.get('Connection', ''):
-                    self.close_origin(origin)
-                else:
-                    self.reset_timer(origin)
-            return res, resdata
-
-    def lock_origin(self, origin):
-        d = self.conn_table.setdefault(origin, {})
-        if not 'lock' in d:
-            d['lock'] = Lock()
-        return d['lock']
-
-    def open_origin(self, origin):
-        conn = self.conn_table[origin].get('connection')
-        if not conn:
-            scheme, netloc = origin
-            if scheme == 'https':
-                conn = httplib.HTTPSConnection(netloc)
-            else:
-                conn = httplib.HTTPConnection(netloc)
-            self.reset_timer(origin)
-            self.conn_table[origin]['connection'] = conn
-        return conn
-
-    def reset_timer(self, origin):
-        timer = self.conn_table[origin].get('timer')
-        if timer:
-            timer.cancel()
-        if self.upstream_timeout:
-            timer = Timer(self.upstream_timeout, self.close_origin, args=[origin])
-            timer.daemon = True
-            timer.start()
-        else:
-            timer = None
-        self.conn_table[origin]['timer'] = timer
-
-    def close_origin(self, origin):
-        timer = self.conn_table[origin]['timer']
-        if timer:
-            timer.cancel()
-        conn = self.conn_table[origin]['connection']
-        conn.close()
-        del self.conn_table[origin]['connection']
-
-    def remove_hop_by_hop_headers(self, headers):
-        hop_by_hop_headers = ['Connection', 'Keep-Alive', 'Proxy-Authenticate', 'Proxy-Authorization', 'TE', 'Trailers', 'Trailer', 'Transfer-Encoding', 'Upgrade']
-        connection = headers.get('Connection')
-        if connection:
-            keys = re.split(r',\s*', connection)
-            hop_by_hop_headers.extend(keys)
-
-        for k in hop_by_hop_headers:
-            if k in headers:
-                del headers[k]
-
-    def modify_via_header(self, headers):
-        via_string = "%s %s" % (self.protocol_version, self.proxy_via)
-        via_string = re.sub(r'^HTTP/', '', via_string)
-
-        original = headers.get('Via')
-        if original:
-            headers['Via'] = original + ', ' + via_string
-        else:
-            headers['Via'] = via_string
-
-    def decode_content_body(self, data, content_encoding):
-        if content_encoding in ('gzip', 'x-gzip'):
-            io = StringIO(data)
-            with gzip.GzipFile(fileobj=io) as f:
-                body = f.read()
-        elif content_encoding == 'deflate':
-            body = zlib.decompress(data)
-        elif content_encoding == 'identity':
-            body = data
-        else:
-            raise Exception("Unknown Content-Encoding: %s" % content_encoding)
-        return body
-
-    def encode_content_body(self, body, content_encoding):
-        if content_encoding in ('gzip', 'x-gzip'):
-            io = StringIO()
-            with gzip.GzipFile(fileobj=io, mode='wb') as f:
-                f.write(body)
-            data = io.getvalue()
-        elif content_encoding == 'deflate':
-            data = zlib.compress(body)
-        elif content_encoding == 'identity':
-            data = body
-        else:
-            raise Exception("Unknown Content-Encoding: %s" % content_encoding)
-        return data
-
-    def split_set_cookie_header(self, value):
-        re_cookies = r'([^=]+=[^,;]+(?:;\s*Expires=[^,]+,[^,;]+|;[^,;]+)*)(?:,\s*)?'
-        return re.findall(re_cookies, value, flags=re.IGNORECASE)
-
-    def request_handler(self, req, reqbody):
-        
-        pass
-
-    def response_handler(self, req, reqbody, res, resbody):
-     
-        pass
-
-    def save_handler(self, req, reqbody, res, resbody):
-     
-        pass
-
-
-
-
-def test(HandlerClass=SimpleHTTPProxyHandler, ServerClass=ThreadingHTTPServer, protocol="HTTP/1.1"):
-    if sys.argv[1:]:
-        port = int(sys.argv[1])
+if args.contr:
+    if args.contr.isdigit():
+        STATUS_RESP = args.contr  # Se usÃ³ -c como cÃ³digo HTTP de respuesta (200, 101, etc.)
     else:
-        port = 8799
-    server_address = ('', port)
+        PASS = str(args.contr)   # Se usÃ³ -c como contraseÃ±a de texto
 
-    HandlerClass.protocol_version = protocol
-    httpd = ServerClass(server_address, HandlerClass)
+if args.texto:
+    STATUS_TXT = args.texto
+elif STATUS_RESP == '101':
+    STATUS_TXT = '<font color="red">Switching Protocols</font>'
+else:
+    STATUS_TXT = '<font color="red">Connection established</font>'
 
-    sa = httpd.socket.getsockname()
-    print("Serving HTTP on")
-    httpd.serve_forever()
+RESPONSE = str('HTTP/1.1 ' + STATUS_RESP + ' ' + STATUS_TXT + '\r\nContent-length: 0\r\n\r\nHTTP/1.1 200 Connection established\r\n\r\n').encode('latin1')
 
+BUFLEN = 4096 * 4
+TIMEOUT = 60
+
+
+class Server(threading.Thread):
+    def __init__(self, host, port):
+        threading.Thread.__init__(self)
+        self.running = False
+        self.host = host
+        self.port = port
+        self.threads = []
+        self.threadsLock = threading.Lock()
+        self.logLock = threading.Lock()
+
+    def run(self):
+        self.soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            self.soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except AttributeError:
+            pass
+        self.soc.settimeout(2)
+
+        # Auto-liberar el puerto si estÃ¡ ocupado por Apache/Nginx/Proceso colgado
+        try:
+            self.soc.bind((self.host, self.port))
+        except Exception as e:
+            os.system(f"fuser -k {self.port}/tcp 2>/dev/null || true")
+            os.system("systemctl stop apache2 nginx 2>/dev/null || true")
+            time.sleep(0.5)
+            try:
+                self.soc.bind((self.host, self.port))
+            except Exception as e2:
+                with open("/root/proxy.log", "a") as f:
+                    f.write(f"[{time.ctime()}] Error binding port {self.port}: {e2}\n")
+                sys.exit(1)
+
+        self.soc.listen(128)
+        self.running = True
+        
+        with open("/root/proxy.log", "a") as f:
+            f.write(f"[{time.ctime()}] Python Proxy 3 corriendo en puerto {self.port} -> {DEFAULT_HOST} (HTTP {STATUS_RESP})\n")
+
+        try:
+            while self.running:
+                try:
+                    c, addr = self.soc.accept()
+                    c.setblocking(1)
+                except socket.timeout:
+                    continue
+
+                conn = ConnectionHandler(c, self, addr)
+                conn.start()
+                self.addConn(conn)
+        finally:
+            self.running = False
+            self.soc.close()
+
+    def printLog(self, log):
+        self.logLock.acquire()
+        print(log)
+        self.logLock.release()
+
+    def addConn(self, conn):
+        try:
+            self.threadsLock.acquire()
+            if self.running:
+                self.threads.append(conn)
+        finally:
+            self.threadsLock.release()
+
+    def removeConn(self, conn):
+        try:
+            self.threadsLock.acquire()
+            if conn in self.threads:
+                self.threads.remove(conn)
+        finally:
+            self.threadsLock.release()
+
+    def close(self):
+        try:
+            self.running = False
+            self.threadsLock.acquire()
+
+            threads = list(self.threads)
+            for c in threads:
+                c.close()
+        finally:
+            self.threadsLock.release()
+
+
+class ConnectionHandler(threading.Thread):
+    def __init__(self, socClient, server, addr):
+        threading.Thread.__init__(self)
+        self.clientClosed = False
+        self.targetClosed = True
+        self.client = socClient
+        self.client_buffer = ''
+        self.server = server
+        self.log = 'Connection: ' + str(addr)
+
+    def close(self):
+        try:
+            if not self.clientClosed:
+                self.client.shutdown(socket.SHUT_RDWR)
+                self.client.close()
+        except:
+            pass
+        finally:
+            self.clientClosed = True
+
+        try:
+            if not self.targetClosed:
+                self.target.shutdown(socket.SHUT_RDWR)
+                self.target.close()
+        except:
+            pass
+        finally:
+            self.targetClosed = True
+
+    def run(self):
+        try:
+            raw_data = self.client.recv(BUFLEN)
+            if not raw_data:
+                return
+            self.client_buffer = raw_data.decode('latin1', errors='ignore')
+
+            hostPort = self.findHeader(self.client_buffer, 'X-Real-Host')
+
+            if hostPort == '':
+                hostPort = DEFAULT_HOST
+
+            split = self.findHeader(self.client_buffer, 'X-Split')
+
+            if split != '':
+                self.client.recv(BUFLEN)
+
+            if hostPort != '':
+                passwd = self.findHeader(self.client_buffer, 'X-Pass')
+                
+                if len(PASS) != 0 and passwd == PASS:
+                    self.method_CONNECT(hostPort)
+                elif len(PASS) != 0 and passwd != PASS:
+                    self.client.send(b'HTTP/1.1 400 WrongPass!\r\n\r\n')
+                elif hostPort.startswith('127.0.0.1') or hostPort.startswith('localhost'):
+                    self.method_CONNECT(hostPort)
+                else:
+                    self.client.send(b'HTTP/1.1 403 Forbidden!\r\n\r\n')
+            else:
+                self.client.send(b'HTTP/1.1 400 NoXRealHost!\r\n\r\n')
+
+        except Exception as e:
+            self.log += ' - error: ' + str(e)
+            self.server.printLog(self.log)
+            pass
+        finally:
+            self.close()
+            self.server.removeConn(self)
+
+    def findHeader(self, head, header):
+        aux = head.find(header + ': ')
+
+        if aux == -1:
+            return ''
+
+        aux = head.find(':', aux)
+        head = head[aux+2:]
+        aux = head.find('\r\n')
+
+        if aux == -1:
+            return ''
+
+        return head[:aux]
+
+    def connect_target(self, host):
+        i = host.find(':')
+        if i != -1:
+            port = int(host[i+1:])
+            host = host[:i]
+        else:
+            port = 443
+
+        (soc_family, soc_type, proto, _, address) = socket.getaddrinfo(host, port)[0]
+
+        self.target = socket.socket(soc_family, soc_type, proto)
+        self.targetClosed = False
+        self.target.connect(address)
+
+    def method_CONNECT(self, path):
+        self.log += ' - CONNECT ' + path
+
+        self.connect_target(path)
+        self.client.sendall(RESPONSE)
+        self.client_buffer = ''
+
+        self.server.printLog(self.log)
+        self.doCONNECT()
+
+    def doCONNECT(self):
+        socs = [self.client, self.target]
+        count = 0
+        error = False
+        while True:
+            count += 1
+            (recv, _, err) = select.select(socs, [], socs, 3)
+            if err:
+                error = True
+            if recv:
+                for in_ in recv:
+                    try:
+                        data = in_.recv(BUFLEN)
+                        if data:
+                            if in_ is self.target:
+                                self.client.send(data)
+                            else:
+                                while data:
+                                    byte = self.target.send(data)
+                                    data = data[byte:]
+
+                            count = 0
+                        else:
+                            break
+                    except:
+                        error = True
+                        break
+            if count == TIMEOUT:
+                error = True
+
+            if error:
+                break
+
+def main():
+    print(f"\n:-------PythonProxy (Python 3)-------:\n")
+    print(f"Listening addr: {LISTENING_ADDR}")
+    print(f"Listening port: {LISTENING_PORT}\n")
+    print(f"Target host: {DEFAULT_HOST}\n")
+    print(f":-----------------------------------:\n")
+
+    server = Server(LISTENING_ADDR, LISTENING_PORT)
+    server.start()
+
+    while True:
+        try:
+            time.sleep(2)
+        except KeyboardInterrupt:
+            print('Stopping...')
+            server.close()
+            break
 
 if __name__ == '__main__':
-    test()
-
+    main()
