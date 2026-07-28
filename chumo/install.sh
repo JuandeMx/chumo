@@ -31,15 +31,22 @@ mkdir -p /etc/cgh
 mkdir -p /bin/ejecutar
 mkdir -p /usr/bin/ejecutar
 
-# 3. Descargar el repositorio desde GitHub si no estamos en la carpeta del script
-INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 3. Localizar directorios de instalación del repositorio
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [ ! -d "$INSTALL_DIR/core" ]; then
-    echo -e "\e[1;34m[+] Clonando componentes desde el repositorio remoto...\e[0m"
-    rm -rf /tmp/chumo_repo
-    git clone https://github.com/JuandeMx/chumo.git /tmp/chumo_repo 2>/dev/null || wget -q https://github.com/JuandeMx/chumo/archive/refs/heads/main.zip -O /tmp/chumo.zip && unzip -q /tmp/chumo.zip -d /tmp/ && mv /tmp/chumo-main /tmp/chumo_repo
-    INSTALL_DIR="/tmp/chumo_repo/chumo"
+if [ -d "$SCRIPT_DIR/chumo/core" ]; then
+    INSTALL_DIR="$SCRIPT_DIR/chumo"
+elif [ -d "$SCRIPT_DIR/core" ]; then
+    INSTALL_DIR="$SCRIPT_DIR"
+else
+    echo -e "\e[1;34m[+] Descargando última versión fresca desde GitHub...\e[0m"
+    rm -rf /tmp/chumo_download
+    git clone https://github.com/JuandeMx/chumo.git /tmp/chumo_download
+    INSTALL_DIR="/tmp/chumo_download/chumo"
 fi
+
+# Limpieza preventiva de scripts Python obsoletos en el sistema
+rm -f /etc/adm-lite/*.py /etc/ADMcgh/*.py /bin/ejecutar/*.py /usr/bin/ejecutar/*.py 2>/dev/null
 
 # 4. Copiar archivos del núcleo (core) y módulos al sistema
 echo -e "\e[1;34m[+] Desplegando scripts, módulos y proxies Python 3...\e[0m"
