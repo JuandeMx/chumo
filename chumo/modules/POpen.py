@@ -251,6 +251,15 @@ class ConnectionHandler(threading.Thread):
     def method_CONNECT(self, path):
         self.log += ' - CONNECT ' + path
 
+        try:
+            if "127.0.0.1" in path or "localhost" in path:
+                s_test = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s_test.settimeout(0.5)
+                if s_test.connect_ex(("127.0.0.1", 442)) == 0:
+                    path = "127.0.0.1:442"
+                s_test.close()
+        except:
+            pass
         self.connect_target(path)
         self.client.sendall(RESPONSE)
         self.client_buffer = ''
