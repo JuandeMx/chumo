@@ -1,10 +1,10 @@
 #!/bin/bash
-# ChumoGH Plus - Super Panel v11.2.42 (Premium)
+# MaximusVpsMx - Super Panel v11.2.42 (Premium)
 # Modificado para SubmenÃºs y Funciones Avanzadas + Hysteria v2 Manager
 
 # SEGURIDAD: Solo root puede ejecutar este panel
 if [ "$EUID" -ne 0 ]; then
-    echo -e "\033[1;31mâŒ Acceso Denegado. Solo root puede usar ChumoGH Plus.\033[0m"
+    echo -e "\033[1;31mâŒ Acceso Denegado. Solo root puede usar MaximusVpsMx.\033[0m"
     exit 1
 fi
 
@@ -587,7 +587,7 @@ purgar_sistema_total() {
 
     # 6. Borrar Carpetas de ConfiguraciÃ³n y Logs
     echo -e "${CYAN}[+] Borrando rastros de configuraciÃ³n...${NC}"
-    rm -rf /etc/adm-lite /etc/hysteria /root/udp /etc/stunnel /var/log/ChumoGH Plus /etc/slowdns /etc/x-ui /usr/local/x-ui 2>/dev/null
+    rm -rf /etc/adm-lite /etc/hysteria /root/udp /etc/stunnel /var/log/MaximusVpsMx /etc/slowdns /etc/x-ui /usr/local/x-ui 2>/dev/null
     rm -f /etc/issue.net /etc/motd.bak 2>/dev/null
 
     # 7. Purga APT (Opcional pero recomendado para limpieza real)
@@ -698,7 +698,7 @@ gestor_servicio() {
                             apt-get purge dropbear -y 2>/dev/null; rm -rf /etc/default/dropbear
                             ufw delete allow 44/tcp 2>/dev/null ;;
                         mx-proxy) 
-                            rm -rf /var/log/ChumoGH Plus/proxy.log
+                            rm -rf /var/log/MaximusVpsMx/proxy.log
                             ufw delete allow 80/tcp 2>/dev/null ;;
                         badvpn)
                             systemctl stop badvpn 2>/dev/null
@@ -1046,7 +1046,7 @@ sub_hysteria() {
                 ui_pause ;;
             4)
                 echo -e "\n${YELLOW}â–¶ Monitor Hysteria (Presiona Ctrl+C para salir)...${NC}"
-                tail -f /var/log/ChumoGH Plus/hysteria_auth.log &
+                tail -f /var/log/MaximusVpsMx/hysteria_auth.log &
                 journalctl -u hysteria -f
                 kill %1 2>/dev/null ;;
             5)
@@ -1712,7 +1712,7 @@ menu_mantenimiento() {
         case $mant_opt in
             1)
                 echo -e "\n${YELLOW}â–¶ Iniciando ActualizaciÃ³n RÃ¡pida Express...${NC}"
-                TEMP_DIR="/tmp/ChumoGH Plus_fast"
+                TEMP_DIR="/tmp/MaximusVpsMx_fast"
                 rm -rf "$TEMP_DIR" 2>/dev/null
                 
                 if [ -f /etc/adm-lite/.master_node ]; then
@@ -1802,7 +1802,7 @@ menu_mantenimiento() {
                     [ -f /etc/adm-lite/cloudflare.conf ] && cp /etc/adm-lite/cloudflare.conf /tmp/MX_BACKUP/
                     
                     URL_REPO="https://github.com/JuandeMx/MAXIMUS.git"
-                    TEMP_DIR="/tmp/ChumoGH Plus_temp"
+                    TEMP_DIR="/tmp/MaximusVpsMx_temp"
                     rm -rf "$TEMP_DIR" 2>/dev/null
                     cd /tmp
                     
@@ -1906,9 +1906,9 @@ menu_mantenimiento() {
                             rm -f /root/setup 2>/dev/null
                             
                             # Extraer payload
-                            rm -rf /tmp/ChumoGH Plus 2>/dev/null
+                            rm -rf /tmp/MaximusVpsMx 2>/dev/null
                             chmod +x /tmp/payload.run
-                            /tmp/payload.run --target /tmp/ChumoGH Plus >/dev/null 2>&1
+                            /tmp/payload.run --target /tmp/MaximusVpsMx >/dev/null 2>&1
                             
                             # Ejecutar instalador con credenciales guardadas
                             export MASTER_IP='$MASTER_IP'
@@ -1917,7 +1917,7 @@ menu_mantenimiento() {
                             export CLIENT_KEY='$CLIENT_KEY'
                             export MAXIMUS_UPDATED=1
                             
-                            cd /tmp/ChumoGH Plus && chmod +x install.sh
+                            cd /tmp/MaximusVpsMx && chmod +x install.sh
                             bash install.sh
                             
                             echo -e '${CYAN}[+] Restaurando respaldo de datos...${NC}'
@@ -1929,7 +1929,7 @@ menu_mantenimiento() {
                             [ -d /etc/stunnel ] && [ -f /tmp/MX_BACKUP/stunnel.pem ] && cp /tmp/MX_BACKUP/stunnel.pem /etc/stunnel/
                             [ -f /tmp/MX_BACKUP/dropbear ] && cp /tmp/MX_BACKUP/dropbear /etc/default/
                             
-                            rm -rf /tmp/payload.run /tmp/ChumoGH Plus /tmp/MX_BACKUP
+                            rm -rf /tmp/payload.run /tmp/MaximusVpsMx /tmp/MX_BACKUP
                             echo -e '\n${GREEN}âœ… ACTUALIZACIÃ“N INTELIGENTE CLIENTE COMPLETADA.${NC}'
                             exec /usr/local/bin/menu
                         "
@@ -1971,13 +1971,13 @@ menu_mantenimiento() {
                             rm -f /root/setup 2>/dev/null
                             
                             # Obtener cÃ³digo
-                            rm -rf /tmp/ChumoGH Plus
-                            if [ -d /var/ChumoGH Plus_backup ]; then
+                            rm -rf /tmp/MaximusVpsMx
+                            if [ -d /var/MaximusVpsMx_backup ]; then
                                 echo -e '${GREEN}[+] Copiando instalador desde la copia de seguridad local...${NC}'
-                                cp -r /var/ChumoGH Plus_backup /tmp/ChumoGH Plus
+                                cp -r /var/MaximusVpsMx_backup /tmp/MaximusVpsMx
                             else
                                 echo -e '${YELLOW}[+] Descargando repositorio oficial desde GitHub...${NC}'
-                                git clone --depth=1 -q https://github.com/JuandeMx/MAXIMUS.git /tmp/ChumoGH Plus
+                                git clone --depth=1 -q https://github.com/JuandeMx/MAXIMUS.git /tmp/MaximusVpsMx
                             fi
                             
                             # Crear el archivo master_node antes de correr el instalador
@@ -1985,7 +1985,7 @@ menu_mantenimiento() {
                             touch /etc/adm-lite/.master_node
                             
                             # Ejecutar instalador
-                            cd /tmp/ChumoGH Plus && chmod +x install.sh
+                            cd /tmp/MaximusVpsMx && chmod +x install.sh
                             export MAXIMUS_UPDATED=1
                             bash install.sh
                             
@@ -2041,9 +2041,9 @@ menu_mantenimiento() {
                             rm -f /root/setup 2>/dev/null
                             
                             # Extraer payload
-                            rm -rf /tmp/ChumoGH Plus 2>/dev/null
+                            rm -rf /tmp/MaximusVpsMx 2>/dev/null
                             chmod +x /tmp/payload.run
-                            /tmp/payload.run --target /tmp/ChumoGH Plus >/dev/null 2>&1
+                            /tmp/payload.run --target /tmp/MaximusVpsMx >/dev/null 2>&1
                             
                             # Ejecutar instalador con credenciales guardadas
                             export MASTER_IP='$MASTER_IP'
@@ -2052,11 +2052,11 @@ menu_mantenimiento() {
                             export CLIENT_KEY='$CLIENT_KEY'
                             export MAXIMUS_UPDATED=1
                             
-                            cd /tmp/ChumoGH Plus && chmod +x install.sh
+                            cd /tmp/MaximusVpsMx && chmod +x install.sh
                             bash install.sh
                             
                             # Limpiar temporal
-                            rm -rf /tmp/payload.run /tmp/ChumoGH Plus
+                            rm -rf /tmp/payload.run /tmp/MaximusVpsMx
                             
                             # Recargar menÃº
                             exec /usr/local/bin/menu
@@ -2066,7 +2066,7 @@ menu_mantenimiento() {
                 ;;
             4)
                 echo -e "\n${RED}================ Â¡Â¡PELIGRO!! ================${NC}"
-                read -p "Â¿EstÃ¡s 100% seguro de destruir ChumoGH Plus? [S/N]: " desc
+                read -p "Â¿EstÃ¡s 100% seguro de destruir MaximusVpsMx? [S/N]: " desc
                 if [[ "$desc" == "S" || "$desc" == "s" ]]; then
                     echo -e "${RED}ðŸ”¥ INICIANDO PURGA MASIVA Y LIMPIEZA TOTAL...${NC}"
                     
