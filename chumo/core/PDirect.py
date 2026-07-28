@@ -1,49 +1,46 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import socket, threading, select, signal, sys, time, getopt, argparse
 try:
     import _thread as thread
 except ImportError:
-    try:
-    import _thread as thread
-except ImportError:
     import thread
 
+# Parse arguments cleanly for BOTH positional args (e.g. 'python PDirect.py 80 22') AND flag args ('-p 80 -l 22')
 parser = argparse.ArgumentParser()
-parser.add_argument("-l", "--local", help="Nombre de archivo a procesar")
-parser.add_argument("-p", "--port", help="Nombre de archivo a procesar")
-parser.add_argument("-c", "--contr", help="Nombre de archivo a procesar")
-parser.add_argument("-r", "--response", help="Nombre de archivo a procesar")
-parser.add_argument("-t", "--texto", help="Nombre de archivo a procesar")
+parser.add_argument("pos_port", nargs="?", default=None, help="Puerto de escucha de socks")
+parser.add_argument("pos_local", nargs="?", default=None, help="Puerto local a redirigir")
+parser.add_argument("-l", "--local", default=None, help="Puerto local")
+parser.add_argument("-p", "--port", default=None, help="Puerto de escucha")
+parser.add_argument("-c", "--contr", default="", help="Contraseña X-Pass")
+parser.add_argument("-r", "--response", default="200", help="Código de respuesta HTTP")
+parser.add_argument("-t", "--texto", default=None, help="Texto de respuesta HTTP")
 
-args = parser.parse_args()
+args, unknown = parser.parse_args()
 
-#==================================
-LISTENING_ADDR = '0.0.0.0'
-
+# Determinar Puerto de Escucha
 if args.port:
     LISTENING_PORT = int(args.port)
+elif args.pos_port:
+    LISTENING_PORT = int(args.pos_port)
 else:
-    print(" Deve ingresar el puerto que usara como socks...")
-    sys.exit()
+    LISTENING_PORT = 80
 
-if args.contr:
-    PASS = str(args.contr)
+# Determinar Puerto Local (Destino)
+if args.local:
+    target_port = args.local
+elif args.pos_local:
+    target_port = args.pos_local
 else:
-    PASS = str()
+    target_port = "22"
+
+DEFAULT_HOST = '127.0.0.1:' + str(target_port)
+LISTENING_ADDR = '0.0.0.0'
+PASS = str(args.contr) if args.contr else ""
 
 BUFLEN = 4096 * 4
 TIMEOUT = 60
 
-if args.local:
-    DEFAULT_HOST = '127.0.0.1:' + args.local
-else:
-    print(" Deve seleccionar un puerto existente para redireccionar el trafico...")
-    sys.exit()
-
-if args.response:
-    STATUS_RESP = args.response
-else:
-    STATUS_RESP = '200'
+STATUS_RESP = args.response if args.response else '200'
 
 if args.texto:
     STATUS_TXT = args.texto
@@ -65,11 +62,20 @@ class Server(threading.Thread):
         self.logLock = threading.Lock()
 
     def run(self):
-        self.soc = socket.socket(socket.AF_INET)
+        self.soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            self.soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except AttributeError:
+            pass
         self.soc.settimeout(2)
-        self.soc.bind((self.host, self.port))
-        self.soc.listen(0)
+        try:
+            self.soc.bind((self.host, self.port))
+        except Exception as e:
+            print(f"Error al enlazar puerto {self.port}: {e}")
+            sys.exit(1)
+            
+        self.soc.listen(128)
         self.running = True
 
         try:
@@ -152,6 +158,8 @@ class ConnectionHandler(threading.Thread):
     def run(self):
         try:
             raw_data = self.client.recv(BUFLEN)
+            if not raw_data:
+                return
             self.client_buffer = raw_data.decode('latin1', errors='ignore')
 
             hostPort = self.findHeader(self.client_buffer, 'X-Real-Host')
@@ -176,7 +184,6 @@ class ConnectionHandler(threading.Thread):
                 else:
                     self.client.send(b'HTTP/1.1 403 Forbidden!\r\n\r\n')
             else:
-                print('- No X-Real-Host!')
                 self.client.send(b'HTTP/1.1 400 NoXRealHost!\r\n\r\n')
 
         except Exception as e:
@@ -259,11 +266,12 @@ class ConnectionHandler(threading.Thread):
             if error:
                 break
 
-def main(host=LISTENING_ADDR, port=LISTENING_PORT):
-    print("\n:-------PythonProxy (Python 3)-------:\n")
-    print("Listening addr: " + LISTENING_ADDR)
-    print("Listening port: " + str(LISTENING_PORT) + "\n")
-    print(":-----------------------------------:\n")
+def main():
+    print(f"\n:-------PythonProxy (Python 3)-------:\n")
+    print(f"Listening addr: {LISTENING_ADDR}")
+    print(f"Listening port: {LISTENING_PORT}\n")
+    print(f"Target host: {DEFAULT_HOST}\n")
+    print(f":-----------------------------------:\n")
 
     server = Server(LISTENING_ADDR, LISTENING_PORT)
     server.start()

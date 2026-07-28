@@ -13,10 +13,10 @@ echo -e "\e[1;32m=========================================================="
 echo " 🛡️ INSTALANDO PANEL CHUMO COMPATIBLE CON UBUNTU 22-26"
 echo "==========================================================\e[0m"
 
-# 1. Instalar paquetes y dependencias del sistema (Incluye SCREEN, PYTHON3, LSOF)
+# 1. Instalar paquetes y dependencias del sistema (Incluye SCREEN, PYTHON3, LSOF, PSMISC)
 echo -e "\e[1;34m[+] Actualizando repositorios e instalando paquetes básicos (screen, python3, etc.)...\e[0m"
 apt-get update -y
-apt-get install -y curl wget net-tools python3 python3-pip tar unzip ufw iptables lsof bc jq dropbear stunnel4 screen procps python-is-python3 2>/dev/null || apt-get install -y screen python3 python3-pip net-tools lsof bc jq dropbear stunnel4
+apt-get install -y curl wget net-tools python3 python3-pip tar unzip ufw iptables lsof bc jq dropbear stunnel4 screen procps psmisc python-is-python3 2>/dev/null || apt-get install -y screen python3 python3-pip net-tools lsof bc jq dropbear stunnel4 psmisc
 
 # Enlazar python3 como comando universal 'python' y 'python2'
 ln -sf /usr/bin/python3 /usr/bin/python 2>/dev/null
@@ -53,6 +53,24 @@ if [ -d "$INSTALL_DIR/modules" ]; then
     cp -rf "$INSTALL_DIR/modules/"* /bin/ejecutar/
     cp -rf "$INSTALL_DIR/modules/"* /usr/bin/ejecutar/
 fi
+
+# Crear alias de archivos Python para que ningún script antiguo dé error 404/Missing File
+for pyfile in PDirect.py PGet.py POpen.py PPriv.py PPub.py; do
+    if [ -f "/etc/adm-lite/$pyfile" ]; then
+        cp -f "/etc/adm-lite/$pyfile" "/etc/adm-lite/${pyfile%.py}80.py" 2>/dev/null
+        cp -f "/etc/adm-lite/$pyfile" "/etc/adm-lite/P3${pyfile}" 2>/dev/null
+        cp -f "/etc/adm-lite/$pyfile" "/etc/adm-lite/P3${pyfile%.py}80.py" 2>/dev/null
+
+        cp -f "/etc/adm-lite/$pyfile" "/bin/ejecutar/${pyfile%.py}80.py" 2>/dev/null
+        cp -f "/etc/adm-lite/$pyfile" "/bin/ejecutar/P3${pyfile}" 2>/dev/null
+        cp -f "/etc/adm-lite/$pyfile" "/bin/ejecutar/P3${pyfile%.py}80.py" 2>/dev/null
+
+        cp -f "/etc/adm-lite/$pyfile" "/root/$pyfile" 2>/dev/null
+        cp -f "/etc/adm-lite/$pyfile" "/root/${pyfile%.py}80.py" 2>/dev/null
+        cp -f "/etc/adm-lite/$pyfile" "/root/P3${pyfile}" 2>/dev/null
+        cp -f "/etc/adm-lite/$pyfile" "/root/P3${pyfile%.py}80.py" 2>/dev/null
+    fi
+done
 
 # 5. Enlazar comandos clave y parchar archivos faltantes en Ubuntu 24/26
 echo -e "\e[1;34m[+] Parching archivos y ejecutables del sistema...\e[0m"
