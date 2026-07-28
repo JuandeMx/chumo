@@ -97,7 +97,7 @@ menu_protocolos() {
             23) bash /etc/adm-lite/mx-bbr.sh ;;
             31) systemctl restart ssh dropbear stunnel4 2>/dev/null ; echo -e "\033[1;32mServicios reiniciados\033[0m" ; sleep 2 ;;
             33) bash /etc/adm-lite/mx-firewall.sh ;;
-            *) echo -e "\033[1;33mOpciÃ³n en desarrollo\033[0m" ; sleep 1 ;;
+            *) echo -e "\033[1;33mOpcion en desarrollo\033[0m" ; sleep 1 ;;
         esac
     done
 }
@@ -112,7 +112,6 @@ main_menu() {
         echo -e " \033[1;37m[05]  INSTALADOR DE PROTOCOLOS\033[0m"
         echo -e " \033[1;37m[06]  REINICIAR SERVICIOS\033[0m"
         echo -e " \033[1;37m[07]  PROXY PYTHON\033[0m"
-        echo -e " \033[1;37m[15]  SSL + PYTHON\033[0m"
         echo -e " \033[1;37m[08]  DESINSTALAR PANEL\033[0m"
         msg -bar3
         echo -e " \033[1;37m[0]   SALIR\033[0m"
@@ -153,11 +152,8 @@ main_menu() {
             7|07)
                 bash /etc/adm-lite/mx-proxies.sh
                 ;;
-            15)
-                bash /etc/adm-lite/mx-ssl-python.sh
-                ;;
             8|08)
-                echo -e "\033[1;31mÂ¿Desea desinstalar ChumoGH Plus? [s/N]: \033[0m"
+                echo -e "\033[1;31mDesea desinstalar ChumoGH Plus? [s/N]: \033[0m"
                 read remove_opt
                 if [[ "$remove_opt" =~ ^[sS]$ ]]; then
                     rm -rf /etc/adm-lite /etc/ADMcgh /usr/bin/menu /usr/bin/chumo
@@ -166,11 +162,11 @@ main_menu() {
                 fi
                 ;;
             0|00)
-                echo -e "\033[1;32mÂ¡Hasta luego!\033[0m"
+                echo -e "\033[1;32mHasta luego!\033[0m"
                 exit 0
                 ;;
             *)
-                echo -e "\033[1;31mOpciÃ³n invÃ¡lida\033[0m"
+                echo -e "\033[1;31mOpcion invalida\033[0m"
                 sleep 1
                 ;;
         esac
