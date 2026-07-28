@@ -65,6 +65,14 @@ if [ -d "$INSTALL_DIR/modules" ]; then
     cp -rf "$INSTALL_DIR/modules/"* /usr/bin/ejecutar/
 fi
 
+# Copiar alias de módulos para compatibilidad total de llamadas
+cp -f /etc/adm-lite/install_proxy_python.sh /etc/adm-lite/mx-proxies.sh 2>/dev/null
+cp -f /etc/adm-lite/install_proxy_python.sh /etc/ADMcgh/mx-proxies.sh 2>/dev/null
+cp -f /etc/adm-lite/install_ssl_python.sh /etc/adm-lite/mx-ssl-python.sh 2>/dev/null
+cp -f /etc/adm-lite/install_dropbear.sh /etc/adm-lite/mx-dropbear.sh 2>/dev/null
+cp -f /etc/adm-lite/install_openvpn.sh /etc/adm-lite/mx-openvpn.sh 2>/dev/null
+cp -f /etc/adm-lite/install_stunnel4.sh /etc/adm-lite/mx-stunnel.sh 2>/dev/null
+
 # Crear enlace simbólico de respaldo /etc/ADMcgh -> /etc/adm-lite para sincronizar cualquier cambio
 cp -rf /etc/adm-lite/* /etc/ADMcgh/ 2>/dev/null
 

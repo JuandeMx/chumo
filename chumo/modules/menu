@@ -83,17 +83,17 @@ menu_protocolos() {
 
         case $proto_opt in
             0) break ;;
-            2) bash /etc/adm-lite/install_dropbear.sh ;;
-            3) bash /etc/adm-lite/install_openvpn.sh ;;
-            4) bash /etc/adm-lite/install_stunnel4.sh ;;
-            5) bash /etc/adm-lite/mx-shadowsocks.sh ;;
+            2) bash /etc/adm-lite/install_dropbear.sh 2>/dev/null || bash /etc/adm-lite/mx-dropbear.sh ;;
+            3) bash /etc/adm-lite/install_openvpn.sh 2>/dev/null || bash /etc/adm-lite/mx-openvpn.sh ;;
+            4) bash /etc/adm-lite/install_stunnel4.sh 2>/dev/null || bash /etc/adm-lite/mx-stunnel.sh ;;
+            5) bash /etc/adm-lite/mx-shadowsocks.sh 2>/dev/null || bash /etc/adm-lite/shadowsocks.sh ;;
             6) bash /etc/adm-lite/mx-squid.sh ;;
-            7) bash /etc/adm-lite/mx-proxies.sh ;;
+            7) bash /etc/adm-lite/install_proxy_python.sh 2>/dev/null || bash /etc/adm-lite/mx-proxies.sh ;;
             8) bash /etc/adm-lite/install_xui.sh ;;
             14) bash /etc/adm-lite/install_slowdns.sh ;;
-            15) bash /etc/adm-lite/mx-ssl-python.sh ;;
-            19) bash /etc/adm-lite/install_udp-custom.sh ;;
-            22) bash /etc/adm-lite/install_badvpn.sh ;;
+            15) bash /etc/adm-lite/install_ssl_python.sh 2>/dev/null || bash /etc/adm-lite/mx-ssl-python.sh ;;
+            19) bash /etc/adm-lite/install_udp-custom.sh 2>/dev/null || bash /etc/adm-lite/UDP_menu.sh ;;
+            20|22) bash /etc/adm-lite/install_badvpn.sh 2>/dev/null || bash /etc/adm-lite/mx-badvpn.sh ;;
             23) bash /etc/adm-lite/mx-bbr.sh ;;
             31) systemctl restart ssh dropbear stunnel4 2>/dev/null ; echo -e "\033[1;32mServicios reiniciados\033[0m" ; sleep 2 ;;
             33) bash /etc/adm-lite/mx-firewall.sh ;;
@@ -150,7 +150,7 @@ main_menu() {
                 sleep 2
                 ;;
             7|07)
-                bash /etc/adm-lite/mx-proxies.sh
+                bash /etc/adm-lite/install_proxy_python.sh 2>/dev/null || bash /etc/adm-lite/mx-proxies.sh
                 ;;
             8|08)
                 echo -e "\033[1;31mDesea desinstalar ChumoGH Plus? [s/N]: \033[0m"
