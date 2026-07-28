@@ -101,10 +101,10 @@ cp /bin/ejecutar/IPcgh /etc/ADMcgh/IPcgh 2>/dev/null
 
 # Fix para garantizar que el menú reconozca 'msg' y 'selection_fun'
 if [ -f /etc/adm-lite/menu ]; then
-    sed -i '1s|^|source /bin/ejecutar/msg 2>/dev/null\n|' /etc/adm-lite/menu
+    sed -i 's|^#!/bin/bash|#!/bin/bash\nsource /bin/ejecutar/msg 2>/dev/null|' /etc/adm-lite/menu 2>/dev/null
 fi
 if [ -f /etc/ADMcgh/menu ]; then
-    sed -i '1s|^|source /bin/ejecutar/msg 2>/dev/null\n|' /etc/ADMcgh/menu
+    sed -i 's|^#!/bin/bash|#!/bin/bash\nsource /bin/ejecutar/msg 2>/dev/null|' /etc/ADMcgh/menu 2>/dev/null
 fi
 
 # 6. Aplicar permisos de ejecución
