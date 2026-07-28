@@ -1,68 +1,70 @@
 #!/bin/bash
 # ==============================================================================
-#  GESTOR COMPLETO DE USUARIOS (SSH / SSL / OVPN / HYSTERIA) - ChumoGH Plus
+#  GESTOR DE USUARIOS AUTÃ‰NTICO DE CHUMOGH PLUS (V3.9.9)
 # ==============================================================================
 
-RED='\033[1;31m'
-GREEN='\033[1;32m'
-BLUE='\033[1;34m'
-CYAN='\033[1;36m'
-YELLOW='\033[1;33m'
-WHITE='\033[1;37m'
-NC='\033[0m'
+if [ "$EUID" -ne 0 ]; then
+    echo -e "\033[1;31m[!] Acceso Denegado. Solo root puede usar ChumoGH Plus.\033[0m"
+    exit 1
+fi
+
+export PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+source /bin/ejecutar/msg 2>/dev/null || source /etc/adm-lite/msg 2>/dev/null || source /etc/ADMcgh/msg 2>/dev/null
 
 USER_DB="/etc/adm-lite/users.db"
 mkdir -p /etc/adm-lite
 touch "$USER_DB"
 
-ui_hr() { echo -e "${CYAN}=======================================================${NC}"; }
-ui_subhr() { echo -e "${CYAN}-------------------------------------------------------${NC}"; }
-ui_pause() { read -p " Presione Enter para regresar..." ; }
-
 menu_usuarios() {
     while true; do
         clear
-        ui_hr
-        echo -e "${YELLOW}           CONTROL Y GESTION DE USUARIOS SSH / SSL / OVPN${NC}"
-        ui_hr
-        echo -e "  ${CYAN}[1] >${GREEN} CREAR USUARIO (VIP / Temporal / HWID)${NC}"
-        echo -e "  ${CYAN}[2] >${RED} ELIMINAR USUARIO${NC}"
-        echo -e "  ${CYAN}[3] >${WHITE} RENOVAR VENCIMIENTO / EXTENDER DIAS${NC}"
-        echo -e "  ${CYAN}[4] >${YELLOW} CAMBIAR CONTRASEÑA DE USUARIO${NC}"
-        echo -e "  ${CYAN}[5] >${WHITE} BLOQUEAR / DESBLOQUEAR USUARIO${NC}"
-        ui_subhr
-        echo -e "  ${CYAN}[6] >${GREEN} LISTAR Y DETALLES DE TODOS LOS USUARIOS${NC}"
-        echo -e "  ${CYAN}[7] >${WHITE} MONITOR DE CONEXIONES EN TIEMPO REAL${NC}"
-        echo -e "  ${CYAN}[8] >${RED} PURGAR Y LIMPIAR USUARIOS EXPIRADOS${NC}"
-        ui_hr
-        echo -e "  ${WHITE}[0] > REGRESAR AL MENÚ PRINCIPAL${NC}"
-        ui_hr
-        echo -ne "${YELLOW} > Selecciona una opción : ${NC}"
+        msg -bar3
+        echo -e "       \033[1;44;37m       ChumoGH  Plus      \033[0m"
+        msg -bar3
+        echo -e " \033[1;33m  CONTROL Y GESTION DE USUARIOS (SSH/SSL/OVPN)  \033[0m"
+        msg -bar3
+        echo -e " \033[1;37m[1] > CREAR USUARIO (VIP / TEMPORAL / HWID)\033[0m"
+        echo -e " \033[1;37m[2] > ELIMINAR USUARIO\033[0m"
+        echo -e " \033[1;37m[3] > RENOVAR USUARIO / EXTENDER DIAS\033[0m"
+        echo -e " \033[1;37m[4] > CAMBIAR CONTRASEÃ‘A\033[0m"
+        echo -e " \033[1;37m[5] > BLOQUEAR / DESBLOQUEAR USUARIO\033[0m"
+        echo -e " \033[1;37m[6] > LISTAR DETALLES DE USUARIOS\033[0m"
+        echo -e " \033[1;37m[7] > MONITOR DE CONEXIONES EN VIVO\033[0m"
+        echo -e " \033[1;37m[8] > ELIMINAR USUARIOS VENCIDOS\033[0m"
+        msg -bar3
+        echo -e " \033[1;37m[0] > [ REGRESAR ]\033[0m"
+        msg -bar3
+        echo -ne "\033[1;37m > Opcion : \033[0m"
         read opt_user
 
         case $opt_user in
             1)
-                echo -e "\n${YELLOW} MODO DE CREACION DE USUARIO${NC}"
-                echo -e "  ${CYAN}[1]${NC} Usuario VIP (Por Dias)"
-                echo -e "  ${CYAN}[2]${NC} Usuario Temporal (Por Horas)"
-                echo -e "  ${CYAN}[3]${NC} Usuario HWID (Bloqueo de Dispositivo)"
-                read -p " Opción: " tipo
+                echo -e "\n\033[1;33m MODO DE CREACION DE USUARIO\033[0m"
+                echo -e "  \033[1;36m[1]\033[0m Usuario VIP (Por Dias)"
+                echo -e "  \033[1;36m[2]\033[0m Usuario Temporal (Por Horas)"
+                echo -e "  \033[1;36m[3]\033[0m Usuario HWID (Token / App)"
+                echo -ne "\033[1;37m > Selecciona tipo : \033[0m"
+                read tipo
                 
-                read -p " Nombre del Usuario: " user
+                echo -ne "\033[1;37m Nombre del Usuario: \033[0m"
+                read user
                 [ -z "$user" ] && continue
                 if grep -qw "^$user:" "$USER_DB" || id "$user" &>/dev/null; then
-                    echo -e "${RED}[!] Error: El usuario $user ya existe en el sistema.${NC}"
+                    echo -e "\033[1;31m[!] Error: El usuario $user ya existe.\033[0m"
                     sleep 2
                     continue
                 fi
 
-                read -p " Contrasena: " pass
+                echo -ne "\033[1;37m Contrasena: \033[0m"
+                read pass
                 [ -z "$pass" ] && pass="1234"
 
                 if [[ "$tipo" == "2" ]]; then
-                    read -p " Horas de Duración [24]: " horas
+                    echo -ne "\033[1;37m Horas de Duracion [24]: \033[0m"
+                    read horas
                     [ -z "$horas" ] && horas=24
-                    read -p " Limite de Conexiones [1]: " limit
+                    echo -ne "\033[1;37m Limite de Conexiones [1]: \033[0m"
+                    read limit
                     [ -z "$limit" ] && limit=1
                     
                     exp_date=$(date -d "+$horas hours" +%Y-%m-%d)
@@ -70,14 +72,17 @@ menu_usuarios() {
                     useradd -e $linux_exp -s /bin/false -M $user 2>/dev/null
                     echo "$user:$pass" | chpasswd
                     echo "$user:$pass:$exp_date:OFF:$limit" >> "$USER_DB"
-                    echo -e "${GREEN}[OK] Usuario temporal $user creado por $horas horas.${NC}"
-                    ui_pause
+                    echo -e "\033[1;32m[OK] Usuario temporal $user creado por $horas horas.\033[0m"
+                    read -p " Presione Enter para continuar..."
                 elif [[ "$tipo" == "3" ]]; then
-                    read -p " Hardware ID / Token del Cliente: " hwid_val
+                    echo -ne "\033[1;37m HWID / Token: \033[0m"
+                    read hwid_val
                     [ -z "$hwid_val" ] && hwid_val="OFF"
-                    read -p " Dias de Duración [30]: " dias
+                    echo -ne "\033[1;37m Dias de Duracion [30]: \033[0m"
+                    read dias
                     [ -z "$dias" ] && dias=30
-                    read -p " Limite de Conexiones [1]: " limit
+                    echo -ne "\033[1;37m Limite de Conexiones [1]: \033[0m"
+                    read limit
                     [ -z "$limit" ] && limit=1
 
                     exp_date=$(date -d "+$dias days" +%Y-%m-%d)
@@ -85,12 +90,14 @@ menu_usuarios() {
                     useradd -e $linux_exp -s /bin/false -M $user 2>/dev/null
                     echo "$user:$pass" | chpasswd
                     echo "$user:$pass:$exp_date:$hwid_val:$limit" >> "$USER_DB"
-                    echo -e "${GREEN}[OK] Usuario HWID $user creado por $dias dias (Token: $hwid_val).${NC}"
-                    ui_pause
+                    echo -e "\033[1;32m[OK] Usuario HWID $user creado por $dias dias.\033[0m"
+                    read -p " Presione Enter para continuar..."
                 else
-                    read -p " Dias de Duración [30]: " dias
+                    echo -ne "\033[1;37m Dias de Duracion [30]: \033[0m"
+                    read dias
                     [ -z "$dias" ] && dias=30
-                    read -p " Limite de Conexiones [1]: " limit
+                    echo -ne "\033[1;37m Limite de Conexiones [1]: \033[0m"
+                    read limit
                     [ -z "$limit" ] && limit=1
 
                     exp_date=$(date -d "+$dias days" +%Y-%m-%d)
@@ -98,33 +105,36 @@ menu_usuarios() {
                     useradd -e $linux_exp -s /bin/false -M $user 2>/dev/null
                     echo "$user:$pass" | chpasswd
                     echo "$user:$pass:$exp_date:OFF:$limit" >> "$USER_DB"
-                    echo -e "${GREEN}[OK] Usuario VIP $user creado por $dias dias.${NC}"
-                    ui_pause
+                    echo -e "\033[1;32m[OK] Usuario VIP $user creado por $dias dias.\033[0m"
+                    read -p " Presione Enter para continuar..."
                 fi
                 ;;
 
             2)
-                echo -e "\n${RED} ELIMINAR USUARIO${NC}"
-                read -p " Nombre del Usuario a borrar: " user
+                echo -e "\n\033[1;31m ELIMINAR USUARIO\033[0m"
+                echo -ne "\033[1;37m Nombre del Usuario a borrar: \033[0m"
+                read user
                 [ -z "$user" ] && continue
                 
                 userdel -f "$user" 2>/dev/null
                 sed -i "/^$user:/d" "$USER_DB" 2>/dev/null
-                echo -e "${GREEN}[OK] Usuario $user eliminado del sistema.${NC}"
-                ui_pause
+                echo -e "\033[1;32m[OK] Usuario $user eliminado del sistema.\033[0m"
+                read -p " Presione Enter para continuar..."
                 ;;
 
             3)
-                echo -e "\n${YELLOW} RENOVAR / EXTENDER USUARIO${NC}"
-                read -p " Nombre del Usuario: " user
+                echo -e "\n\033[1;33m RENOVAR USUARIO\033[0m"
+                echo -ne "\033[1;37m Nombre del Usuario: \033[0m"
+                read user
                 [ -z "$user" ] && continue
                 if ! grep -qw "^$user:" "$USER_DB"; then
-                    echo -e "${RED}[!] Usuario no encontrado en la base de datos.${NC}"
+                    echo -e "\033[1;31m[!] Usuario no encontrado.\033[0m"
                     sleep 2
                     continue
                 fi
 
-                read -p " Dias a Anadir [30]: " dias
+                echo -ne "\033[1;37m Dias a Anadir [30]: \033[0m"
+                read dias
                 [ -z "$dias" ] && dias=30
 
                 old_exp=$(grep -w "^$user" "$USER_DB" | cut -d: -f3)
@@ -139,15 +149,17 @@ menu_usuarios() {
 
                 chage -E $new_exp $user 2>/dev/null
                 sed -i "/^$user:/ s/:${old_exp}:/:${new_exp}:/" "$USER_DB"
-                echo -e "${GREEN}[OK] Usuario $user renovado exitosamente hasta $new_exp.${NC}"
-                ui_pause
+                echo -e "\033[1;32m[OK] Usuario $user renovado hasta $new_exp.\033[0m"
+                read -p " Presione Enter para continuar..."
                 ;;
 
             4)
-                echo -e "\n${YELLOW} CAMBIAR CONTRASEÑA${NC}"
-                read -p " Nombre del Usuario: " user
+                echo -e "\n\033[1;33m CAMBIAR CONTRASEÃ‘A\033[0m"
+                echo -ne "\033[1;37m Nombre del Usuario: \033[0m"
+                read user
                 [ -z "$user" ] && continue
-                read -p " Nueva Contrasena: " pass
+                echo -ne "\033[1;37m Nueva Contrasena: \033[0m"
+                read pass
                 [ -z "$pass" ] && continue
 
                 echo "$user:$pass" | chpasswd
@@ -156,53 +168,53 @@ menu_usuarios() {
                     old_pass=$(echo "$old_line" | cut -d: -f2)
                     sed -i "/^$user:/ s/:${old_pass}:/:${pass}:/" "$USER_DB"
                 fi
-                echo -e "${GREEN}[OK] Contrasena actualizada para $user.${NC}"
-                ui_pause
+                echo -e "\033[1;32m[OK] Contrasena actualizada para $user.\033[0m"
+                read -p " Presione Enter para continuar..."
                 ;;
 
             5)
-                echo -e "\n${YELLOW} BLOQUEAR / DESBLOQUEAR USUARIO${NC}"
-                read -p " Nombre del Usuario: " user
+                echo -e "\n\033[1;33m BLOQUEAR / DESBLOQUEAR USUARIO\033[0m"
+                echo -ne "\033[1;37m Nombre del Usuario: \033[0m"
+                read user
                 [ -z "$user" ] && continue
 
                 if passwd -S "$user" 2>/dev/null | grep -q "L"; then
                     passwd -u "$user" 2>/dev/null
-                    echo -e "${GREEN}[OK] Usuario $user DESBLOQUEADO.${NC}"
+                    echo -e "\033[1;32m[OK] Usuario $user DESBLOQUEADO.\033[0m"
                 else
                     passwd -l "$user" 2>/dev/null
-                    echo -e "${RED}[OK] Usuario $user BLOQUEADO.${NC}"
+                    echo -e "\033[1;31m[OK] Usuario $user BLOQUEADO.\033[0m"
                 fi
-                ui_pause
+                read -p " Presione Enter para continuar..."
                 ;;
 
             6)
-                echo -e "\n${CYAN} DETALLES DE USUARIOS EN EL SISTEMA${NC}"
-                ui_subhr
-                printf "%-15s %-12s %-12s %-8s\n" "USUARIO" "PASSWORD" "EXPIRACION" "LIMITE"
-                ui_subhr
+                echo -e "\n\033[1;36m DETALLES DE USUARIOS EN EL SISTEMA\033[0m"
+                msg -bar3
+                printf "\033[1;37m%-15s %-12s %-12s %-8s\033[0m\n" "USUARIO" "PASSWORD" "EXPIRACION" "LIMITE"
+                msg -bar3
                 if [ -f "$USER_DB" ]; then
                     while IFS=: read -r u p e h l; do
                         [ -z "$u" ] && continue
                         printf "%-15s %-12s %-12s %-8s\n" "$u" "$p" "$e" "$l"
                     done < "$USER_DB"
                 else
-                    echo -e "${YELLOW}No hay usuarios registrados.${NC}"
+                    echo -e "\033[1;33mNo hay usuarios registrados.\033[0m"
                 fi
-                ui_subhr
-                ui_pause
+                msg -bar3
+                read -p " Presione Enter para continuar..."
                 ;;
 
             7)
-                echo -e "\n${GREEN} MONITOR DE CONEXIONES ACTIVAS (SSH / PROXY)${NC}"
-                ui_subhr
+                echo -e "\n\033[1;32m MONITOR DE CONEXIONES ACTIVAS\033[0m"
+                msg -bar3
                 netstat -tnpa 2>/dev/null | grep ESTABLISHED | grep -E 'sshd|python' | awk '{print $5, $7}'
-                ui_subhr
-                ui_pause
+                msg -bar3
+                read -p " Presione Enter para continuar..."
                 ;;
 
             8)
-                echo -e "\n${RED} LIMPIANDO USUARIOS EXPIRADOS...${NC}"
-                today=$(date +%Y-%m-%d)
+                echo -e "\n\033[1;31m LIMPIANDO USUARIOS EXPIRADOS...\033[0m"
                 today_sec=$(date +%s)
                 
                 if [ -f "$USER_DB" ]; then
@@ -212,12 +224,12 @@ menu_usuarios() {
                         if [ "$exp_sec" -gt 0 ] && [ "$today_sec" -gt "$exp_sec" ]; then
                             userdel -f "$u" 2>/dev/null
                             sed -i "/^$u:/d" "$USER_DB" 2>/dev/null
-                            echo -e "${RED}[-] Usuario expirado eliminado: $u${NC}"
+                            echo -e "\033[1;31m[-] Usuario expirado eliminado: $u\033[0m"
                         fi
                     done < "$USER_DB"
                 fi
-                echo -e "${GREEN}[OK] Limpieza completada.${NC}"
-                ui_pause
+                echo -e "\033[1;32m[OK] Limpieza completada.\033[0m"
+                read -p " Presione Enter para continuar..."
                 ;;
 
             0)
@@ -225,7 +237,7 @@ menu_usuarios() {
                 ;;
 
             *)
-                echo -e "${RED}Opción inválida.${NC}"
+                echo -e "\033[1;31mOpciÃ³n invÃ¡lida.\033[0m"
                 sleep 1
                 ;;
         esac
