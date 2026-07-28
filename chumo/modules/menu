@@ -121,11 +121,7 @@ main_menu() {
 
         case $opt in
             1|01)
-                echo -e "\033[1;32m--- CONTROL DE USUARIOS --- \033[0m"
-                useradd -m -s /bin/false testuser 2>/dev/null
-                echo -e "\033[1;33mUsuarios en el sistema:\033[0m"
-                cut -d: -f1 /etc/passwd | grep -v 'root' | tail -n 10
-                read -p "Presione Enter para regresar..."
+                bash /etc/adm-lite/user_manager.sh 2>/dev/null || bash /etc/ADMcgh/user_manager.sh
                 ;;
             2|02)
                 sync && echo 3 > /proc/sys/vm/drop_caches 2>/dev/null
