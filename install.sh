@@ -13,10 +13,14 @@ echo -e "\e[1;32m=========================================================="
 echo " 🛡️ INSTALANDO PANEL CHUMO COMPATIBLE CON UBUNTU 22-26"
 echo "==========================================================\e[0m"
 
-# 1. Instalar paquetes y dependencias del sistema
-echo -e "\e[1;34m[+] Actualizando repositorios e instalando paquetes básicos...\e[0m"
+# 1. Instalar paquetes y dependencias del sistema (Incluye SCREEN, PYTHON3, LSOF)
+echo -e "\e[1;34m[+] Actualizando repositorios e instalando paquetes básicos (screen, python3, etc.)...\e[0m"
 apt-get update -y
-apt-get install -y curl wget net-tools python3 python3-pip tar unzip ufw iptables lsof bc jq dropbear stunnel4
+apt-get install -y curl wget net-tools python3 python3-pip tar unzip ufw iptables lsof bc jq dropbear stunnel4 screen procps python-is-python3 2>/dev/null || apt-get install -y screen python3 python3-pip net-tools lsof bc jq dropbear stunnel4
+
+# Enlazar python3 como comando universal 'python' y 'python2'
+ln -sf /usr/bin/python3 /usr/bin/python 2>/dev/null
+ln -sf /usr/bin/python3 /usr/bin/python2 2>/dev/null
 
 # 2. Preparar directorios de trabajo oficiales
 echo -e "\e[1;34m[+] Preparando directorios del sistema (/etc/adm-lite, /bin/ejecutar)...\e[0m"
