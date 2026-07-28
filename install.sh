@@ -22,9 +22,10 @@ apt-get install -y curl wget net-tools python3 python3-pip tar unzip ufw iptable
 ln -sf /usr/bin/python3 /usr/bin/python 2>/dev/null
 ln -sf /usr/bin/python3 /usr/bin/python2 2>/dev/null
 
-# 2. Preparar directorios de trabajo oficiales
-echo -e "\e[1;34m[+] Preparando directorios del sistema (/etc/adm-lite, /bin/ejecutar)...\e[0m"
+# 2. Preparar directorios de trabajo oficiales (incluyendo /etc/ADMcgh)
+echo -e "\e[1;34m[+] Preparando directorios del sistema (/etc/adm-lite, /etc/ADMcgh, /bin/ejecutar)...\e[0m"
 mkdir -p /etc/adm-lite
+mkdir -p /etc/ADMcgh
 mkdir -p /etc/ger-inst
 mkdir -p /etc/cgh
 mkdir -p /bin/ejecutar
@@ -44,31 +45,32 @@ fi
 echo -e "\e[1;34m[+] Desplegando scripts, módulos y proxies Python 3...\e[0m"
 if [ -d "$INSTALL_DIR/core" ]; then
     cp -rf "$INSTALL_DIR/core/"* /etc/adm-lite/
+    cp -rf "$INSTALL_DIR/core/"* /etc/ADMcgh/
     cp -rf "$INSTALL_DIR/core/"* /bin/ejecutar/
     cp -rf "$INSTALL_DIR/core/"* /usr/bin/ejecutar/
 fi
 
 if [ -d "$INSTALL_DIR/modules" ]; then
     cp -rf "$INSTALL_DIR/modules/"* /etc/adm-lite/
+    cp -rf "$INSTALL_DIR/modules/"* /etc/ADMcgh/
     cp -rf "$INSTALL_DIR/modules/"* /bin/ejecutar/
     cp -rf "$INSTALL_DIR/modules/"* /usr/bin/ejecutar/
 fi
 
+# Crear enlace simbólico de respaldo /etc/ADMcgh -> /etc/adm-lite para sincronizar cualquier cambio
+cp -rf /etc/adm-lite/* /etc/ADMcgh/ 2>/dev/null
+
 # Crear alias de archivos Python para que ningún script antiguo dé error 404/Missing File
 for pyfile in PDirect.py PGet.py POpen.py PPriv.py PPub.py; do
     if [ -f "/etc/adm-lite/$pyfile" ]; then
-        cp -f "/etc/adm-lite/$pyfile" "/etc/adm-lite/${pyfile%.py}80.py" 2>/dev/null
-        cp -f "/etc/adm-lite/$pyfile" "/etc/adm-lite/P3${pyfile}" 2>/dev/null
-        cp -f "/etc/adm-lite/$pyfile" "/etc/adm-lite/P3${pyfile%.py}80.py" 2>/dev/null
-
-        cp -f "/etc/adm-lite/$pyfile" "/bin/ejecutar/${pyfile%.py}80.py" 2>/dev/null
-        cp -f "/etc/adm-lite/$pyfile" "/bin/ejecutar/P3${pyfile}" 2>/dev/null
-        cp -f "/etc/adm-lite/$pyfile" "/bin/ejecutar/P3${pyfile%.py}80.py" 2>/dev/null
-
-        cp -f "/etc/adm-lite/$pyfile" "/root/$pyfile" 2>/dev/null
-        cp -f "/etc/adm-lite/$pyfile" "/root/${pyfile%.py}80.py" 2>/dev/null
-        cp -f "/etc/adm-lite/$pyfile" "/root/P3${pyfile}" 2>/dev/null
-        cp -f "/etc/adm-lite/$pyfile" "/root/P3${pyfile%.py}80.py" 2>/dev/null
+        for target_dir in /etc/adm-lite /etc/ADMcgh /bin/ejecutar /root; do
+            mkdir -p "$target_dir"
+            cp -f "/etc/adm-lite/$pyfile" "$target_dir/$pyfile" 2>/dev/null
+            cp -f "/etc/adm-lite/$pyfile" "$target_dir/${pyfile%.py}80.py" 2>/dev/null
+            cp -f "/etc/adm-lite/$pyfile" "$target_dir/P3${pyfile}" 2>/dev/null
+            cp -f "/etc/adm-lite/$pyfile" "$target_dir/P3${pyfile%.py}80.py" 2>/dev/null
+            chmod +x "$target_dir/"*.py 2>/dev/null
+        done
     fi
 done
 
@@ -80,21 +82,27 @@ ln -sf /etc/adm-lite/msg /bin/ejecutar/msg
 
 touch /etc/sysctl.conf
 echo "v3.9.9" > /etc/adm-lite/v-local.log
+echo "v3.9.9" > /etc/ADMcgh/v-local.log
 echo "v3.9.9" > /bin/ejecutar/v-local.log
 echo "v3.9.9" > /bin/ejecutar/v-new.log
 touch /bin/ejecutar/exito
 
 curl -4 -sL https://api.ipify.org > /bin/ejecutar/IPcgh 2>/dev/null || hostname -I | awk '{print $1}' > /bin/ejecutar/IPcgh
 cp /bin/ejecutar/IPcgh /etc/adm-lite/IPcgh 2>/dev/null
+cp /bin/ejecutar/IPcgh /etc/ADMcgh/IPcgh 2>/dev/null
 
 # Fix para garantizar que el menú reconozca 'msg' y 'selection_fun'
 if [ -f /etc/adm-lite/menu ]; then
     sed -i '1s|^|source /bin/ejecutar/msg 2>/dev/null\n|' /etc/adm-lite/menu
 fi
+if [ -f /etc/ADMcgh/menu ]; then
+    sed -i '1s|^|source /bin/ejecutar/msg 2>/dev/null\n|' /etc/ADMcgh/menu
+fi
 
 # 6. Aplicar permisos de ejecución
 echo -e "\e[1;34m[+] Configurando permisos de ejecución...\e[0m"
-chmod +x /etc/adm-lite/*
+chmod +x /etc/adm-lite/* 2>/dev/null
+chmod +x /etc/ADMcgh/* 2>/dev/null
 chmod +x /bin/ejecutar/* 2>/dev/null
 chmod +x /usr/bin/msg /bin/msg
 
