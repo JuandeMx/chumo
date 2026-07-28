@@ -89,7 +89,7 @@ menu_protocolos() {
             5) bash /etc/adm-lite/mx-shadowsocks.sh 2>/dev/null || bash /etc/adm-lite/shadowsocks.sh ;;
             6) bash /etc/adm-lite/mx-squid.sh ;;
             7) bash /etc/adm-lite/install_proxy_python.sh 2>/dev/null || bash /etc/adm-lite/mx-proxies.sh ;;
-            8) bash /etc/adm-lite/install_xui.sh ;;
+            8) bash /etc/adm-lite/v2ray_manager.sh 2>/dev/null || bash /etc/adm-lite/v2r.bin ;;
             14) bash /etc/adm-lite/install_slowdns.sh ;;
             15) bash /etc/adm-lite/install_ssl_python.sh 2>/dev/null || bash /etc/adm-lite/mx-ssl-python.sh ;;
             19) bash /etc/adm-lite/install_udp-custom.sh 2>/dev/null || bash /etc/adm-lite/UDP_menu.sh ;;
